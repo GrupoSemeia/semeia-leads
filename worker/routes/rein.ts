@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { type App, type Env, tenantOf, requireRole, clean, fail, encryptSecret, decryptSecret, audit } from '../lib'
 import { reinPing, type ReinCredentials } from '../rein/client'
+import { mesclarConfig } from '../domain/pedido'
 
 export const rein = new Hono<App>()
 rein.use('*', requireRole('manager'))
@@ -44,4 +45,16 @@ rein.post('/test', async c => {
   if (!creds.clientId || !creds.clientSecret || !creds.database) throw fail(400, 'Preencha ClientId, ClientSecret e Database.')
   try { await reinPing(creds) } catch (e: any) { throw fail(502, `Não consegui conectar ao ERP: ${e.message}`) }
   return c.json({ ok: true, mock: false, mensagem: 'Conexão com o ERP funcionando.' })
+})
+
+/** Valores que o ERP exige para criar pedido (natureza, uso, presença, pagamento…). ⚠️ VALIDAR com a Rein antes de ligar a escrita. */
+rein.get('/pedido', async c => {
+  const r = await c.env.DB.prepare("SELECT value FROM settings WHERE tenant_id=? AND key='pedido_erp'").bind(tenantOf(c)).first<{ value: string }>()
+  try { return c.json(mesclarConfig(r ? JSON.parse(r.value) : null)) } catch { return c.json(mesclarConfig(null)) }
+})
+rein.put('/pedido', async c => {
+  const t = tenantOf(c), cfg = mesclarConfig(await c.req.json())
+  await c.env.DB.prepare("INSERT INTO settings (tenant_id, key, value) VALUES (?, 'pedido_erp', ?) ON CONFLICT(tenant_id, key) DO UPDATE SET value=excluded.value").bind(t, JSON.stringify(cfg)).run()
+  await audit(c.env.DB, t, c.get('session').userId, 'rein.pedido_config', cfg)
+  return c.json(cfg)
 })

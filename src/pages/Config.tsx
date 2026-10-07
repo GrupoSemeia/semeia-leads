@@ -5,7 +5,7 @@ import { useMe } from '../me'
 import { brl } from '../api'
 
 export default function Config() {
-  return <><PageHead eyebrow="Empresa" title="Configurações" /><div className="stack"><PlanoCard /><ConexaoErp /><Sincronizacao /><Modelos /><Equipe /></div></>
+  return <><PageHead eyebrow="Empresa" title="Configurações" /><div className="stack"><PlanoCard /><ConexaoErp /><PedidoErp /><Sincronizacao /><Modelos /><Equipe /></div></>
 }
 
 function ConexaoErp() {
@@ -143,4 +143,22 @@ function Modelos() {
       <input name="title" defaultValue={m.title} aria-label="Título" /><textarea name="body" defaultValue={m.body} rows={3} aria-label={`Texto de ${m.title}`} />
       <div><button className="btn sm">Salvar</button></div></form>)}
   </div>
+}
+
+const CAMPOS_PEDIDO: [string, string, string][] = [['codOrigem', 'Empresa emitente (CodOrigem)', 'number'], ['canalVendaId', 'Canal de venda “App Carteira” (id no ERP)', 'number'], ['codNatureza', 'Natureza da operação', 'text'],
+  ['usoMercadoria', 'Uso da mercadoria', 'text'], ['indicadorPresenca', 'Indicador de presença', 'number'], ['codMeioPagamento', 'Meio de pagamento (código)', 'number'], ['prazoDias', 'Prazo da parcela (dias)', 'number']]
+function PedidoErp() {
+  const { dados: c, erro, recarregar } = useApi<any>('/rein/pedido')
+  const toast = useToast()
+  if (!c) return <Carregando erro={erro} />
+  async function salvar(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault(); const f = Object.fromEntries(new FormData(e.currentTarget))
+    try { await api('/rein/pedido', { method: 'PUT', body: f }); toast('Configuração do pedido salva.'); recarregar() } catch (x: any) { toast(x.message) }
+  }
+  return <form className="card" style={{ padding: 18, display: 'grid', gap: 12 }} onSubmit={salvar}>
+    <div><div className="eyebrow">Pré-pedido</div><h3>Envio de pedido ao ERP</h3>
+      <p className="muted" style={{ margin: '4px 0 0' }}>Valores que o ERP exige para criar um pedido de venda. Peça os códigos certos à Rein e à AC3 antes de ligar “Permitir enviar pedidos ao ERP”: pedido tem efeito fiscal.</p></div>
+    <div className="grid2">{CAMPOS_PEDIDO.map(([k, l, t]) => <label className="fl" key={k}><span>{l}</span><input name={k} type={t} defaultValue={c[k] ?? ''} /></label>)}</div>
+    <div><button className="btn pri">Salvar</button></div>
+  </form>
 }

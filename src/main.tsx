@@ -12,6 +12,8 @@ import EmBreve from './pages/EmBreve'
 import Carteira from './pages/Carteira'
 import Cliente from './pages/Cliente'
 import Hoje from './pages/Hoje'
+import Catalogo from './pages/Catalogo'
+import { PrePedidos, PrePedido } from './pages/PrePedidos'
 import Nps from './pages/Nps'
 
 
@@ -22,7 +24,7 @@ function Shell({ me, recarregar, children }: { me: Me; recarregar: () => void; c
   const gestor = me.usuario.papel !== 'seller'
   const sair = async () => { await api('/auth/logout', { method: 'POST' }); recarregar(); nav('/entrar') }
   const trocar = async (id: string) => { await api('/auth/switch-tenant', { body: { empresaId: id } }); recarregar(); nav('/') }
-  const itens: [string, string, string][] = [['/', 'Hoje', 'home'], ['/carteira', 'Carteira', 'users'], ['/leads', 'Leads', 'inbox'], ['/catalogo', 'Catálogo', 'tag']]
+  const itens: [string, string, string][] = [['/', 'Hoje', 'home'], ['/carteira', 'Carteira', 'users'], ['/leads', 'Leads', 'inbox'], ['/catalogo', 'Catálogo', 'tag'], ['/pre-pedidos', 'Pré-pedidos', 'file']]
   const link = (to: string, l: string, ic: string) => <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => `nav ${isActive ? 'on' : ''}`}><Icon n={ic} /> {l}</NavLink>
   return <div className={`shell ${menu ? 'menu-open' : ''}`}>
     <aside className="side">
@@ -67,7 +69,9 @@ function App() {
         <Route path="/carteira" element={<Carteira />} />
         <Route path="/carteira/:id" element={<Cliente />} />
         <Route path="/leads" element={<EmBreve eyebrow="Funil" titulo="Leads" texto="Funil de leads com dono e acompanhamento. Chega na Sprint 6." />} />
-        <Route path="/catalogo" element={<EmBreve eyebrow="Produtos" titulo="Catálogo" texto="Produtos com o preço da tabela de cada cliente. Chega na Sprint 5." />} />
+        <Route path="/catalogo" element={<Catalogo />} />
+        <Route path="/pre-pedidos" element={<PrePedidos />} />
+        <Route path="/pre-pedidos/:id" element={<PrePedido />} />
         {me.usuario.papel !== 'seller' && <Route path="/configuracoes" element={<Config />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

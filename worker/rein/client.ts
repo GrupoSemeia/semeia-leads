@@ -19,11 +19,15 @@ export async function signRequest(pathWithQuery: string, creds: ReinCredentials,
 
 export class ReinError extends Error { constructor(public status: number, msg: string) { super(msg) } }
 
-/** GET/PUT/POST assinado, com timeout de 30 s e até 3 tentativas (429/5xx/timeout) com espera exponencial. */
-export async function reinFetch<T>(method: 'GET' | 'PUT' | 'POST', pathWithQuery: string, creds: ReinCredentials, body?: unknown): Promise<T> {
+/**
+ * GET/PUT/POST assinado, com timeout de 30 s. Leituras (GET) tentam até 3 vezes (429/5xx/timeout) com espera exponencial.
+ * Escritas (PUT/POST) NUNCA repetem sozinhas: uma falha depois que o ERP já gravou criaria pedido/cadastro em duplicidade.
+ */
+export async function reinFetch<T>(method: 'GET' | 'PUT' | 'POST', pathWithQuery: string, creds: ReinCredentials, body?: unknown, opts: { esperaMs?: number } = {}): Promise<T> {
   let last: unknown
-  for (let tentativa = 0; tentativa < 3; tentativa++) {
-    if (tentativa) await new Promise(r => setTimeout(r, 500 * 2 ** tentativa))
+  const tentativas = method === 'GET' ? 3 : 1
+  for (let tentativa = 0; tentativa < tentativas; tentativa++) {
+    if (tentativa) await new Promise(r => setTimeout(r, (opts.esperaMs ?? 500) * 2 ** tentativa))
     try {
       const res = await fetch(creds.baseUrl.replace(/\/$/, '') + pathWithQuery, {
         method, headers: await signRequest(pathWithQuery, creds), body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(30_000),

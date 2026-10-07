@@ -43,9 +43,9 @@ Marque `[x]` ao concluir. Cada sprint termina com algo demonstrável à AC3.
 - [ ] **Piloto com 1 vendedor**
 
 ## Sprint 5 — Catálogo e pré-pedido (semana 6)
-- [ ] Catálogo com preço da tabela do cliente (sem custo/margem para vendedor)
-- [ ] Pré-pedido (carrinho), resumo para WhatsApp
-- [ ] Envio ao ERP via `PUT /pedido` atrás de `REIN_PEDIDO_WRITE_ENABLED` (homologar com Rein antes de ligar)
+- [x] Catálogo com preço da tabela do cliente (busca, categoria, marca; sem custo/margem; imagens ainda não, dependem do R2) — plano Profissional ou acima
+- [x] Pré-pedido (carrinho no navegador → rascunho no servidor com preços refeitos pelo servidor), resumo para copiar/WhatsApp, edição, exclusão
+- [x] Envio ao ERP via `PUT /pedido` atrás de `pedido_write_enabled` (padrão desligado → `PENDENTE_FLAG`), tentativa única, `ENVIANDO` reservado antes da chamada, gestor resolve pedido travado. **Falta homologar com a Rein** os códigos de natureza, uso, presença e meio de pagamento (Configurações → Envio de pedido ao ERP) e o formato real da resposta do PUT
 
 ## Sprint 6 — Leads (semana 7)
 - [ ] Formulário público `/seja-revendedor` + BrasilAPI + dedupe por CNPJ

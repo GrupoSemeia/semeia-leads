@@ -462,3 +462,4 @@ a.btn{display:inline-flex;align-items:center}
 .listx .ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .listx .t2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:480px){.tbl th,.tbl td{padding:8px 8px}.kpi .v{font-size:26px!important}}
+.toast{bottom:84px}

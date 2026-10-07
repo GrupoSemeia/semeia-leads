@@ -3,7 +3,7 @@
  * O sync só conhece `ReinApi`, nunca `fetch`.
  */
 import { reinFetch, type ReinCredentials } from './client'
-import { unwrapList, unwrapOne, nUsuario, nTabelaPreco, nCategoria, nMarca, nProduto, nPessoa, nPedido,
+import { unwrapList, unwrapOne, idDaResposta, nUsuario, nTabelaPreco, nCategoria, nMarca, nProduto, nPessoa, nPedido,
   type Usuario, type TabelaPreco, type Categoria, type Marca, type Produto, type Pessoa, type Pedido } from './normalize'
 import { mockApi } from './mock'
 
@@ -19,6 +19,8 @@ export interface ReinApi {
   listPessoas(page: number): Promise<Page<Pessoa>>
   listPedidosVenda(f: PedidoFiltro): Promise<Page<Pedido>>
   getPedido(id: number): Promise<Pedido | null>
+  /** Cria pedido de venda no ERP (PUT /pedido). Tentativa única. Devolve o Id do pedido criado, se a Rein informar. */
+  createPedido(corpo: unknown): Promise<{ id: number | null }>
 }
 
 /** ⚠️ VALIDAR: base da paginação (0 ou 1) e nome do parâmetro. */
@@ -44,6 +46,7 @@ function realApi(creds: ReinCredentials): ReinApi {
     // ⚠️ VALIDAR: formato das datas dos filtros
     listPedidosVenda: f => list('pedido', { DataMovInicial: f.de, DataMovFinal: f.ate, TipoMovimento: TIPO_VENDA, ...page(f.page) }, nPedido),
     getPedido: async id => { const o = unwrapOne(await reinFetch<unknown>('GET', `/api/v1/pedido/${id}`, creds)); return o ? nPedido(o) : null },
+    createPedido: async corpo => ({ id: idDaResposta(unwrapOne(await reinFetch<unknown>('PUT', '/api/v1/pedido', creds, corpo))) }),
   }
 }
 

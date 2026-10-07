@@ -116,3 +116,6 @@ export function nPedido(o: Obj): Pedido {
     finalized: o.Finalizado === undefined ? null : bool(o.Finalizado), cancelled: bool(pick(o, 'Cancelado', 'Cancelada')), items, raw: o,
   }
 }
+
+/** Id do registro criado, na resposta de um PUT (⚠️ VALIDAR o formato real). */
+export const idDaResposta = (o: Obj | null): number | null => (o ? int(pick(o, 'Id', 'id', 'PedidoId', 'ID')) : null)

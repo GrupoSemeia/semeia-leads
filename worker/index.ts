@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { type App, type Env, AppError, requireLogin } from './lib'
+import { type App, type Env, AppError, requireLogin, requireNivel } from './lib'
 import { auth } from './routes/auth'
 import { team } from './routes/team'
 import { rein } from './routes/rein'
@@ -8,6 +8,8 @@ import { accounts } from './routes/accounts'
 import { admin } from './routes/admin'
 import { agenda, templates } from './routes/agenda'
 import { publico } from './routes/publico'
+import { catalogo } from './routes/catalogo'
+import { prepedidos } from './routes/prepedidos'
 import { runScheduled } from './sync/engine'
 
 const app = new Hono<App>()
@@ -31,6 +33,11 @@ priv.route('/sync', sync)
 priv.route('/accounts', accounts)
 priv.route('/agenda', agenda)
 priv.route('/templates', templates)
+// Profissional (nível 2) ou acima; no teste grátis tudo vale
+priv.use('/catalogo/*', requireNivel(2)); priv.use('/catalogo', requireNivel(2))
+priv.use('/pre-pedidos/*', requireNivel(2)); priv.use('/pre-pedidos', requireNivel(2))
+priv.route('/catalogo', catalogo)
+priv.route('/pre-pedidos', prepedidos)
 priv.route('/admin', admin)   // plataforma (Grupo Semeia): só ADMINS
 app.route('/api', priv)
 
