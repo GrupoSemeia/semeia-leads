@@ -15,6 +15,7 @@ import Hoje from './pages/Hoje'
 import Leads from './pages/Leads'
 import Painel from './pages/Painel'
 import Assinatura from './pages/Assinatura'
+import Admin from './pages/Admin'
 import SejaRevendedor from './pages/SejaRevendedor'
 import Catalogo from './pages/Catalogo'
 import { PrePedidos, PrePedido } from './pages/PrePedidos'
@@ -34,6 +35,7 @@ function Shell({ me, recarregar, children }: { me: Me; recarregar: () => void; c
     <aside className="side">
       <div className="brand"><Logo /><b>Semeia <i>Leads</i></b></div>
       {itens.map(([to, l, ic]) => link(to, l, ic))}
+      {me.admin && <><div className="navlabel">Plataforma</div>{link('/admin', 'Todas as empresas', 'shield')}</>}
       {gestor && <><div className="navlabel">Gestão</div>{link('/painel', 'Painel', 'kanban')}{link('/configuracoes', 'Configurações', 'gear')}</>}
       <div className="foot">Um produto <b style={{ color: '#B0C4DE' }}>Grupo Semeia Digital</b></div>
     </aside>
@@ -84,6 +86,7 @@ function App() {
         {me.usuario.papel !== 'seller' && <Route path="/configuracoes" element={<Config />} />}
         {me.usuario.papel !== 'seller' && <Route path="/painel" element={<Painel />} />}
         <Route path="/assinatura" element={<Assinatura />} />
+        {me.admin && <Route path="/admin" element={<Admin />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Shell>

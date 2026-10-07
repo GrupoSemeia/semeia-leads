@@ -19,7 +19,8 @@ export const waLink = (tel: string, msg: string) => `https://wa.me/55${digitos(t
 export const PAPEL: Record<string, string> = { admin: 'Administrador', manager: 'Gestor', seller: 'Vendedor' }
 
 export const STATUS_CONTA: Record<string, [string, string]> = { PROSPECT: ['Nunca comprou', ''], ATIVO: ['Ativo', 'p-aprovado'], EM_RISCO: ['Em risco', 'p-enviado'], INATIVO: ['Inativo', 'p-recusado'] }
-const dUTC = (s: string) => new Date(s.replace(' ', 'T') + 'Z')
+/** Aceita 'AAAA-MM-DD HH:MM:SS' (UTC, do banco) e ISO completo ('…T…Z'). */
+const dUTC = (s: string) => new Date(/[TZ]/.test(s) ? s : s.replace(' ', 'T') + 'Z')
 export const fData = (s: string | null) => (s ? dUTC(s).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—')
 export const diasDesde = (s: string | null) => (s ? Math.floor((Date.now() - dUTC(s).getTime()) / 864e5) : null)
 export const fDias = (s: string | null) => { const d = diasDesde(s); return d === null ? 'nunca' : d <= 0 ? 'hoje' : d === 1 ? 'ontem' : `há ${d} dias` }
