@@ -64,6 +64,10 @@ Marque `[x]` ao concluir. Cada sprint termina com algo demonstrável à AC3.
 - [x] Troca no app → fila → ERP (atrás de `pessoa_write_enabled` e do campo configurado), com espelho atualizado e proteção contra o ERP antigo desfazer a troca
 - [ ] **Falta a Rein confirmar** o campo do vendedor e o formato do `POST /pessoa/{id}` (perguntas 11 e 12 de `docs/02-api-rein.md`)
 
+## Itens que ficaram depois do MVP (feitos em seguida)
+- [x] Cobrança dos planos (Asaas) · [x] Administração da plataforma · [x] Imagens de produto (R2) · [x] Página de apresentação
+- [ ] Recuperação de senha por e-mail · [ ] Aviso por e-mail ao gestor
+
 ## Fase 2 (pós-MVP)
 WhatsApp Cloud API + disparos automáticos · agente de IA no WhatsApp (consulta catálogo, monta pré-pedido para aprovação) ·
 estoque/financeiro/NF-e quando a Rein expuser · RMA · comissão por positivação · multi-tenant para outros distribuidores Ctrl-e.

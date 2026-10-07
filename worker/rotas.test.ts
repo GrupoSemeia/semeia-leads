@@ -6,6 +6,7 @@ import { app } from './index'
  * Motivo: uma troca de arquivo já cortou, sem o TypeScript reclamar, as rotas de registrar contato e mensagem do WhatsApp.
  */
 const ESPERADAS = [
+  'GET /',
   'POST /api/auth/signup', 'POST /api/auth/login', 'GET /api/auth/me', 'POST /api/auth/switch-tenant', 'POST /api/auth/invite/:token',
   'GET /api/publico/nps/:token', 'POST /api/publico/nps/:token', 'GET /api/publico/revendedor/:slug', 'POST /api/publico/revendedor/:slug',
   'GET /api/equipe', 'POST /api/equipe/invites', 'PATCH /api/equipe/:userId',

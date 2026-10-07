@@ -4,12 +4,12 @@
   "main": "worker/index.ts",
   "compatibility_date": "2026-09-25",
   "compatibility_flags": ["nodejs_compat"],
-  // App React (pasta dist) + API no mesmo Worker. Rotas /api/* passam primeiro pelo Worker.
+  // App React (pasta dist) + API no mesmo Worker. A entrada "/" e as rotas /api/* passam primeiro pelo Worker ("/" decide entre a página de apresentação e o app).
   "assets": {
     "directory": "./dist",
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/", "/api/*"]
   },
   "d1_databases": [
     { "binding": "DB", "database_name": "semeia-leads", "database_id": "41fa0c8d-488a-47ff-a20f-05bbb66ef05f", "migrations_dir": "migrations" }

@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { type App, type Env, AppError, requireLogin, requireNivel } from './lib'
+import { type App, type Env, AppError, requireLogin, requireNivel, readSession } from './lib'
 import { auth } from './routes/auth'
 import { team } from './routes/team'
 import { rein } from './routes/rein'
@@ -58,6 +58,16 @@ priv.route('/admin', admin)   // plataforma (Grupo Semeia): só ADMINS
 app.route('/api', priv)
 
 app.all('/api/*', c => c.json({ erro: 'Rota não encontrada.' }, 404))
+// Entrada do site: quem não está logado vê a página de apresentação; quem está logado, ou abriu pelo ícone instalado no celular
+// (start_url "/?origem=app"), vai direto para o app. A mesma URL muda conforme o login, por isso não pode ficar em cache.
+app.get('/', async c => {
+  const logado = c.req.query('origem') === 'app' || !!(await readSession(c).catch(() => null))
+  const url = new URL(c.req.url); url.pathname = logado ? '/' : '/inicio'; url.search = ''
+  const r = await c.env.ASSETS.fetch(new Request(url, c.req.raw))
+  const resp = new Response(r.body, r)
+  resp.headers.set('cache-control', 'no-store'); resp.headers.append('vary', 'Cookie')
+  return resp
+})
 app.all('*', c => c.env.ASSETS.fetch(c.req.raw))
 
 export default {

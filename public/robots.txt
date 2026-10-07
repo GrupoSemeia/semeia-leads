@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /$
+Allow: /inicio
+Disallow: /api/
+Disallow: /nps/
+Disallow: /convite/
+Disallow: /seja-revendedor/
+Disallow: /entrar
