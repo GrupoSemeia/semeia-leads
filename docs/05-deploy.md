@@ -15,6 +15,13 @@ npm run deploy                              # build + wrangler deploy → https:
 - **Domínio próprio:** descomente `routes` em `wrangler.jsonc` com o domínio escolhido (a zona precisa estar na conta). Não crie registros DNS à mão para esse nome.
 - Administradores da plataforma: e-mails em `ADMINS` (`wrangler.jsonc`).
 
+## 1b. Cobrança (Asaas)
+```bash
+npx wrangler secret put ASAAS_API_KEY        # chave da conta Asaas (a de teste `$aact_hmlg_…` usa o sandbox)
+openssl rand -hex 24 | npx wrangler secret put ASAAS_WEBHOOK_TOKEN   # guarde o valor: vai na Asaas também
+```
+Na Asaas (Integrações → Webhooks): URL `https://<domínio>/api/asaas/webhook`, token de autenticação = o mesmo `ASAAS_WEBHOOK_TOKEN`, eventos de **cobrança** (criada, atualizada, confirmada, recebida, vencida) e de **assinatura** (removida/inativada). Teste primeiro com a chave do sandbox: contratar um plano, pagar a cobrança de teste e ver a conta ativar. **Antes do piloto**, coloque a AC3 como `plan='ativo'` (`PATCH /api/admin/tenants/:id`) ou ela será bloqueada quando o teste de 14 dias acabar.
+
 ## 2. Backup (dados de clientes — LGPD)
 - **Primário:** D1 Time Travel (restauração a qualquer minuto dos últimos 30 dias): `npx wrangler d1 time-travel info semeia-leads` e `... restore semeia-leads --timestamp=<ISO>`.
 - **Cópia fora da Cloudflare:** `CLOUDFLARE_API_TOKEN=… npm run backup` gera um `.sql` fora do repositório, com permissão 600. Guarde em local privado e criptografado; **nunca no Git**. Sugestão: semanal.

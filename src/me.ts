@@ -7,6 +7,7 @@ export type Me = {
   empresas: { id: string; name: string; city: string }[]
   trialDias: number | null
   plano: { tier: string; efetivo: string; nome: string; contratado: string; nivel: number; emTeste: boolean; suspenso: boolean; limiteVendedores: number; limiteClientes: number | null
+    bloqueado: boolean; motivo: string; mensagem: string | null; aviso: 'teste_acaba' | 'atrasada' | null; assinatura: string | null
     vendedores: number; clientes: number; preco: number; vendedorExtra: number; extraContratados: number; mesesPagosNoAno: number }
   admin?: boolean
 }

@@ -17,9 +17,11 @@
   // Domínio próprio (decidir com o Neto; a zona precisa estar na conta Cloudflare). Exemplo:
   // "routes": [{ "pattern": "leads.seudominio.com.br", "custom_domain": true }],
   // ADMINS: e-mails dos administradores da plataforma (veem todas as empresas), separados por vírgula
-  "vars": { "APP_NAME": "Semeia Leads", "ADMINS": "alcyjvneto@gmail.com" },
+  "vars": { "APP_NAME": "Semeia Leads", "ADMINS": "alcyjvneto@gmail.com", "ASAAS_URL": "https://api.asaas.com/v3" },
   // Sync com o ERP: a cada 15 min (pedidos recentes; cadastros às 05h UTC = 02h Brasília; continua cargas pela metade)
   "triggers": { "crons": ["*/15 * * * *"] },
-  // segredos (não ficam no código): npx wrangler secret put SECRETS_KEY   (32 bytes em base64: openssl rand -base64 32)
+  // segredos (não ficam no código): npx wrangler secret put SECRETS_KEY · ASAAS_API_KEY · ASAAS_WEBHOOK_TOKEN
+  // (ASAAS_API_KEY de teste `$aact_hmlg_…` usa o sandbox sozinha)
+  // SECRETS_KEY = 32 bytes em base64: openssl rand -base64 32
   "observability": { "enabled": true }
 }

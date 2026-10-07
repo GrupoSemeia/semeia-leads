@@ -2,7 +2,8 @@ import type { Context, MiddlewareHandler } from 'hono'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import { nivelDe, limiteVendedores, PLANOS, tierEfetivo } from './plans'
 
-export type Env = { DB: D1Database; ASSETS: Fetcher; APP_NAME: string; ADMINS?: string; SECRETS_KEY?: string }
+export type Env = { DB: D1Database; ASSETS: Fetcher; APP_NAME: string; ADMINS?: string; SECRETS_KEY?: string
+  ASAAS_URL?: string; ASAAS_API_KEY?: string; ASAAS_WEBHOOK_TOKEN?: string }
 export type Role = 'admin' | 'manager' | 'seller'
 export type Session = { userId: string; tenantId: string; role: Role; name: string; email: string; platformAdmin: boolean }
 export type App = { Bindings: Env; Variables: { session: Session } }
@@ -17,6 +18,12 @@ export function randomToken(bytes = 24): string {
 export async function sha256(txt: string): Promise<string> {
   const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt))
   return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, '0')).join('')
+}
+/** Comparação de textos em tempo constante (tokens de webhook): compara os SHA-256, então tamanho e conteúdo não vazam por tempo. */
+export async function igualConstante(a: string, b: string): Promise<boolean> {
+  const [x, y] = await Promise.all([sha256(a), sha256(b)])
+  let dif = 0; for (let i = 0; i < x.length; i++) dif |= x.charCodeAt(i) ^ y.charCodeAt(i)
+  return dif === 0
 }
 export const digits = (s: string) => (s || '').replace(/\D/g, '')
 export const clean = (s: unknown, max = 500) => String(s ?? '').trim().slice(0, max)

@@ -13,6 +13,8 @@ import { prepedidos } from './routes/prepedidos'
 import { leads } from './routes/leads'
 import { painel } from './routes/painel'
 import { parametros } from './routes/parametros'
+import { assinatura, asaasWebhook } from './routes/assinatura'
+import { exigirContaLiberada } from './billing'
 import { runScheduled } from './sync/engine'
 
 export const app = new Hono<App>()
@@ -25,11 +27,13 @@ app.onError((e, c) => {
 })
 
 app.route('/api/auth', auth)
-app.route('/api/publico', publico)   // sem login (pesquisa NPS por token)
+app.route('/api/publico', publico)
+app.route('/api/asaas/webhook', asaasWebhook)   // Asaas: pagamentos dos planos (token no cabeçalho)   // sem login (pesquisa NPS por token)
 
 // daqui para baixo, só com login — cada rota recebe a empresa da sessão
 const priv = new Hono<App>()
 priv.use('*', requireLogin)
+priv.use('*', exigirContaLiberada)   // teste acabou / sem pagamento / suspensa → 402 (dados guardados)
 priv.route('/equipe', team)
 priv.route('/rein', rein)
 priv.route('/sync', sync)
@@ -43,6 +47,7 @@ priv.use('/leads/*', requireNivel(2)); priv.use('/leads', requireNivel(2))
 priv.route('/leads', leads)
 priv.use('/painel/*', requireNivel(3)); priv.use('/painel', requireNivel(3))
 priv.route('/painel', painel)
+priv.route('/assinatura', assinatura)
 priv.route('/parametros', parametros)
 priv.route('/catalogo', catalogo)
 priv.route('/pre-pedidos', prepedidos)

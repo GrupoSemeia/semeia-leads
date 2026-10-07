@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react'
+import { Link } from 'react-router-dom'
 import { api, PAPEL } from '../api'
 import { PageHead, Carregando, useApi, useToast, copiar } from '../ui'
 import { useMe } from '../me'
@@ -124,7 +125,8 @@ function PlanoCard() {
     <div className="grid2"><div><div className="muted" style={{ fontSize: 12 }}>Vendedores</div><strong>{uso(p.vendedores, p.limiteVendedores)}</strong></div>
       <div><div className="muted" style={{ fontSize: 12 }}>Clientes na carteira</div><strong>{uso(p.clientes, p.limiteClientes)}</strong></div></div>
     {estourou && <div className="note">Sua carteira passou do limite do plano. Nada foi apagado, mas considere subir de plano.</div>}
-    <p className="muted" style={{ margin: 0 }}>Vendedor adicional: {brl(p.vendedorExtra)}/mês. Pagando por 1 ano, você ganha 2 meses. Para trocar de plano, fale com o Grupo Semeia Digital.</p>
+    <p className="muted" style={{ margin: 0 }}>Vendedor adicional: {brl(p.vendedorExtra)}/mês. Pagando por 1 ano, você ganha 2 meses.</p>
+    {me.usuario.papel === 'admin' ? <div><Link className="btn pri" to="/assinatura">Plano e pagamento</Link></div> : <p className="muted" style={{ margin: 0 }}>Para mudar de plano, fale com o administrador da empresa.</p>}
   </div>
 }
 
