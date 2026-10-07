@@ -21,6 +21,7 @@ import SejaRevendedor from './pages/SejaRevendedor'
 import Catalogo from './pages/Catalogo'
 import { PrePedidos, PrePedido } from './pages/PrePedidos'
 import Nps from './pages/Nps'
+import Ajuda, { temaDaRota } from './pages/Ajuda'
 
 
 function Shell({ me, recarregar, children }: { me: Me; recarregar: () => void; children: ReactNode }) {
@@ -36,6 +37,7 @@ function Shell({ me, recarregar, children }: { me: Me; recarregar: () => void; c
     <aside className="side">
       <div className="brand"><Logo /><b>Semeia <i>Leads</i></b></div>
       {itens.map(([to, l, ic]) => link(to, l, ic))}
+      <div className="navlabel">Suporte</div>{link('/ajuda', 'Ajuda', 'help')}
       {me.admin && <><div className="navlabel">Plataforma</div>{link('/admin', 'Todas as empresas', 'shield')}</>}
       {gestor && <><div className="navlabel">Gestão</div>{link('/painel', 'Painel', 'kanban')}{link('/configuracoes', 'Configurações', 'gear')}</>}
       <div className="foot">Um produto <b style={{ color: '#B0C4DE' }}>Grupo Semeia Digital</b></div>
@@ -53,6 +55,7 @@ function Shell({ me, recarregar, children }: { me: Me; recarregar: () => void; c
         </div>
         <div style={{ flex: 1 }} />
         {me.trialDias !== null ? <NavLink to="/assinatura" className="planpill trial" style={{ textDecoration: 'none' }}>Teste grátis · {me.trialDias} dia(s)</NavLink> : <span className="planpill">{me.plano.nome}</span>}
+        <NavLink to={`/ajuda/${temaDaRota(loc.pathname)}`} className="btn ghost sm" title="Como funciona esta tela" aria-label="Ajuda sobre esta tela"><Icon n="help" /></NavLink>
         <span className="avatar" title={me.usuario.nome}>{iniciais(me.usuario.nome)}</span>
         <button className="btn ghost sm" onClick={sair} title="Sair" aria-label="Sair"><Icon n="logout" /></button>
       </header>
@@ -86,6 +89,8 @@ function App() {
         <Route path="/pre-pedidos/:id" element={<PrePedido />} />
         {me.usuario.papel !== 'seller' && <Route path="/configuracoes" element={<Config />} />}
         {me.usuario.papel !== 'seller' && <Route path="/painel" element={<Painel />} />}
+        <Route path="/ajuda" element={<Ajuda />} />
+        <Route path="/ajuda/:tema" element={<Ajuda />} />
         <Route path="/assinatura" element={<Assinatura />} />
         {me.admin && <Route path="/admin" element={<Admin />} />}
         <Route path="*" element={<Navigate to="/" replace />} />

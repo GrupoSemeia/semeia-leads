@@ -468,3 +468,13 @@ a.btn{display:inline-flex;align-items:center}
 /* painel: o que só cabe em tela larga */
 @media(max-width:600px){.so-desktop{display:none}.tbl.compacta{font-size:13px}.tbl.compacta th,.tbl.compacta td{padding:8px 5px}}
 .so-mobile{display:none}@media(max-width:600px){.so-mobile{display:inline}}
+/* ajuda */
+.ajuda{display:grid;grid-template-columns:220px minmax(0,1fr);gap:16px;align-items:start}
+.ajuda-menu{display:grid;gap:4px;position:sticky;top:12px}
+.ajuda-item{display:flex;align-items:center;gap:8px;padding:9px 12px;border-radius:8px;color:var(--ink-2);text-decoration:none;font-size:14px;border:1px solid transparent}
+.ajuda-item:hover{background:var(--surface-2)}
+.ajuda-item.on{background:var(--accent-soft);color:var(--accent);border-color:var(--line-2)}
+.ajuda-corpo h2{font-family:var(--f-display);font-size:28px;line-height:1.1}
+.ajuda-h{font-size:14px;font-weight:600;margin-bottom:8px;color:var(--ink)}
+.ajuda-lista{margin:0;padding-left:20px;display:grid;gap:8px;color:var(--ink-2);line-height:1.5;font-size:14px}
+@media (max-width:760px){.ajuda{grid-template-columns:minmax(0,1fr)}.ajuda-menu{position:static;display:flex;overflow-x:auto;gap:6px;padding-bottom:4px}.ajuda-item{white-space:nowrap;flex:none;border-color:var(--line-2)}}
