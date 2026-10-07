@@ -25,3 +25,8 @@ export const diasDesde = (s: string | null) => (s ? Math.floor((Date.now() - dUT
 export const fDias = (s: string | null) => { const d = diasDesde(s); return d === null ? 'nunca' : d <= 0 ? 'hoje' : d === 1 ? 'ontem' : `há ${d} dias` }
 export const telWa = (t: string | null) => digitos(t ?? '')
 export const brlInt = (centavos: number) => (Number(centavos || 0) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
+
+export const RESULTADOS: [string, string][] = [['VENDEU', 'Vendeu'], ['ORCAMENTO', 'Mandei orçamento (volta em 3 dias)'], ['SEM_INTERESSE', 'Sem interesse agora (volta em 30 dias)'], ['NAO_RESPONDEU', 'Não respondeu (tenta em 2 dias)'], ['REAGENDAR', 'Reagendar para uma data']]
+export const CANAIS: [string, string][] = [['whatsapp', 'WhatsApp'], ['ligacao', 'Ligação'], ['visita', 'Visita'], ['email', 'E-mail']]
+export const rotuloResultado = (r: string | null) => RESULTADOS.find(x => x[0] === r)?.[1].replace(/ \(.*\)/, '') ?? 'Anotação'
+export const hojeISO = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10)

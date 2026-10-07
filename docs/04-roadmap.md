@@ -36,10 +36,10 @@ Marque `[x]` ao concluir. Cada sprint termina com algo demonstrável à AC3.
 - [x] Planos do SaaS (Essencial/Profissional/Distribuidor), limite de vendedores no servidor, rota de administração da plataforma (`/api/admin/tenants`). Falta: cobrança (Asaas), tela de admin, limite de clientes só informativo
 
 ## Sprint 4 — Agenda e contato (semana 5)
-- [ ] `GET /agenda` + tela `Hoje`
-- [ ] Registrar interação + reagendar; WhatsApp `wa.me` com templates
-- [ ] `tasks.generate` (pós-venda D+1, NPS D+7, recompra, reativação)
-- [ ] Página pública NPS e tarefa "Tratar insatisfação"
+- [x] `GET /agenda` + tela `Hoje` (contas vencidas + tarefas, 1 item por cliente, mensagem de WhatsApp já pronta; gestor vê `?escopo=todos`, inclusive clientes sem dono)
+- [x] Registrar contato (resultado → próximo contato: orçamento 3 d, não respondeu 2 d, sem interesse 30 d, reagendar = data) + histórico na ficha; WhatsApp `wa.me` com modelos editáveis (Configurações)
+- [x] Tarefas D+1 e D+7 geradas ao fim de cada sync (só pedidos dos últimos 10 dias). Recompra e reativação **não são tarefas**: já entram na agenda pelo status/score da conta, com o modelo certo
+- [x] Página pública `/nps/:token` e tarefa "Tratar insatisfação" (nota ≤ 6, topo da agenda do dono; gestor vê em "todos"). Falta alerta ativo ao gestor (e-mail/push) e relatório de NPS (Sprint 7)
 - [ ] **Piloto com 1 vendedor**
 
 ## Sprint 5 — Catálogo e pré-pedido (semana 6)

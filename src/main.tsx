@@ -11,6 +11,8 @@ import Config from './pages/Config'
 import EmBreve from './pages/EmBreve'
 import Carteira from './pages/Carteira'
 import Cliente from './pages/Cliente'
+import Hoje from './pages/Hoje'
+import Nps from './pages/Nps'
 
 
 function Shell({ me, recarregar, children }: { me: Me; recarregar: () => void; children: ReactNode }) {
@@ -55,13 +57,13 @@ function App() {
   const carregar = () => api<Me>('/auth/me').then(setMe).catch(() => setMe({ logado: false } as Me))
   useEffect(() => { carregar() }, [])
   const loc = useLocation()
-  if (/^\/convite\//.test(loc.pathname)) return <Routes><Route path="/convite/:token" element={<Convite aoEntrar={carregar} />} /></Routes>
+  if (/^\/(convite|nps)\//.test(loc.pathname)) return <Routes><Route path="/convite/:token" element={<Convite aoEntrar={carregar} />} /><Route path="/nps/:token" element={<Nps />} /></Routes>
   if (!me) return <Carregando />
   if (!me.logado) return <Routes><Route path="/entrar" element={<Entrar aoEntrar={carregar} />} /><Route path="*" element={<Navigate to="/entrar" replace />} /></Routes>
   return <MeCtx.Provider value={{ me, recarregar: carregar }}>
     <Shell me={me} recarregar={carregar}>
       <Routes>
-        <Route path="/" element={<EmBreve eyebrow="Agenda do dia" titulo="Hoje" texto="Aqui vai aparecer quem você deve contatar hoje, em ordem de prioridade. Chega na Sprint 4." />} />
+        <Route path="/" element={<Hoje />} />
         <Route path="/carteira" element={<Carteira />} />
         <Route path="/carteira/:id" element={<Cliente />} />
         <Route path="/leads" element={<EmBreve eyebrow="Funil" titulo="Leads" texto="Funil de leads com dono e acompanhamento. Chega na Sprint 6." />} />

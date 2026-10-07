@@ -1,6 +1,8 @@
 import { Hono } from 'hono'
 import { type App, tenantOf, requireRole, fail, newId, audit, digits, clean } from '../lib'
-import { recomputeAccounts } from '../metrics'
+import { recomputeAccounts, rescoreAccount } from '../metrics'
+import { efeitoDoContato, concluiTarefa, RESULTADOS, CANAIS, renderModelo, MODELOS_PADRAO, type Resultado } from '../domain/contato'
+import { ensureTemplates } from '../tasks'
 
 export const accounts = new Hono<App>()
 
@@ -50,7 +52,7 @@ accounts.get('/:id{[0-9]+}', async c => {
       WHERE a.tenant_id = ? AND a.pessoa_rein_id = ?${meu ? ' AND a.owner_id = ?' : ''}`).bind(...[t, id, ...(meu ? [meu] : [])]).first<any>()
   if (!conta) throw fail(404, 'Cliente não encontrado.')
 
-  const [pedidos, top, comprados, categorias] = await Promise.all([
+  const [pedidos, top, comprados, categorias, interacoes] = await Promise.all([
     db.prepare(`SELECT o.rein_id AS id, o.ordered_at AS orderedAt, o.total, o.cancelled, (SELECT COUNT(*) FROM rein_pedido_itens i WHERE i.tenant_id = o.tenant_id AND i.pedido_rein_id = o.rein_id) AS itens
                   FROM rein_pedidos o WHERE o.tenant_id = ? AND o.pessoa_rein_id = ? ORDER BY o.ordered_at DESC LIMIT 10`).bind(t, id).all(),
     db.prepare(`SELECT i.produto_rein_id AS id, COALESCE(pr.name, 'Produto ' || i.produto_rein_id) AS name, SUM(i.qty) AS qty, SUM(i.qty * i.unit_price) AS total
@@ -60,9 +62,11 @@ accounts.get('/:id{[0-9]+}', async c => {
     db.prepare(`SELECT DISTINCT pr.category_ids FROM rein_pedido_itens i JOIN rein_pedidos o ON o.tenant_id = i.tenant_id AND o.rein_id = i.pedido_rein_id AND o.cancelled = 0
                   JOIN rein_produtos pr ON pr.tenant_id = i.tenant_id AND pr.rein_id = i.produto_rein_id WHERE i.tenant_id = ? AND o.pessoa_rein_id = ?`).bind(t, id).all<any>(),
     db.prepare('SELECT rein_id AS id, name FROM rein_categorias WHERE tenant_id = ? AND deleted_at IS NULL ORDER BY name').bind(t).all<any>(),
+    db.prepare(`SELECT i.id, i.channel, i.result, i.note, i.next_contact_at AS nextContactAt, i.created_at AS createdAt, u.name AS userName
+                  FROM interactions i JOIN users u ON u.id = i.user_id WHERE i.tenant_id = ? AND i.pessoa_rein_id = ? ORDER BY i.created_at DESC LIMIT 20`).bind(t, id).all(),
   ])
   const jaComprou = new Set(comprados.results.flatMap((r: any) => { try { return JSON.parse(r.category_ids) as number[] } catch { return [] } }))
-  return c.json({ ...conta, pedidos: pedidos.results, topProdutos: top.results, categoriasNuncaCompradas: categorias.results.filter((k: any) => !jaComprou.has(k.id)) })
+  return c.json({ ...conta, pedidos: pedidos.results, topProdutos: top.results, categoriasNuncaCompradas: categorias.results.filter((k: any) => !jaComprou.has(k.id)), interacoes: interacoes.results })
 })
 
 /* ---- ações do gestor ---- */
@@ -87,4 +91,64 @@ accounts.post('/reassign', requireRole('manager'), async c => {
   for (let i = 0; i < stmts.length; i += 80) await db.batch(stmts.slice(i, i + 80))
   await audit(db, t, me, 'accounts.reassign', { qtd: mudam.length, para })
   return c.json({ movidos: mudam.length })
+})
+
+/* ---- contato com o cliente ---- */
+/** Conta que o usuário pode trabalhar: vendedor só a própria; gestor/admin qualquer da empresa. */
+async function contaAcessivel(c: any, id: number) {
+  const meu = escopoVendedor(c)
+  const a = await c.env.DB.prepare(`SELECT a.pessoa_rein_id AS id, p.name, p.whatsapp FROM accounts a JOIN rein_pessoas p ON p.tenant_id=a.tenant_id AND p.rein_id=a.pessoa_rein_id
+    WHERE a.tenant_id = ? AND a.pessoa_rein_id = ?${meu ? ' AND a.owner_id = ?' : ''}`).bind(...[tenantOf(c), id, ...(meu ? [meu] : [])]).first()
+  if (!a) throw fail(404, 'Cliente não encontrado.')
+  return a as { id: number; name: string; whatsapp: string | null }
+}
+
+/** Registrar contato feito: grava no histórico, define o próximo contato pelo resultado e conclui a tarefa. */
+accounts.post('/:id{[0-9]+}/interactions', async c => {
+  const t = tenantOf(c), id = Number(c.req.param('id')), db = c.env.DB, b = await c.req.json<any>(), me = c.get('session').userId, agora = new Date()
+  await contaAcessivel(c, id)
+  const canal = CANAIS.includes(b.canal) ? b.canal : 'whatsapp'
+  const resultado: Resultado | null = RESULTADOS.includes(b.resultado) ? b.resultado : null
+  if (!resultado) throw fail(400, 'Escolha o resultado do contato.')
+  const efeito = efeitoDoContato(resultado, agora, b.reagendarPara ? new Date(`${String(b.reagendarPara).slice(0, 10)}T12:00:00Z`) : null)
+  if (!efeito.ok) throw fail(400, efeito.erro)
+  const fmt = (d: Date | null) => (d ? d.toISOString().slice(0, 19).replace('T', ' ') : null)
+  const stmts = [
+    db.prepare('INSERT INTO interactions (id, tenant_id, pessoa_rein_id, user_id, channel, result, note, next_contact_at) VALUES (?,?,?,?,?,?,?,?)')
+      .bind(newId(), t, id, me, canal, resultado, clean(b.nota, 500) || null, fmt(efeito.reagendarPara)),
+    db.prepare('UPDATE accounts SET last_contact_at=?, reschedule_at=? WHERE tenant_id=? AND pessoa_rein_id=?').bind(fmt(agora), fmt(efeito.reagendarPara), t, id),
+  ]
+  if (concluiTarefa(resultado)) {
+    // a tarefa escolhida na agenda e o pós-venda D+1 do cliente deixam de pendurar; "não respondeu" mantém tudo aberto
+    stmts.push(db.prepare(`UPDATE tasks SET status='FEITA', done_at=datetime('now') WHERE tenant_id=? AND pessoa_rein_id=? AND status='ABERTA' AND (id = ? OR type = 'POS_VENDA_D1')`).bind(t, id, String(b.tarefaId ?? '')))
+  } else if (b.tarefaId) {
+    stmts.push(db.prepare(`UPDATE tasks SET due_at=? WHERE tenant_id=? AND id=? AND pessoa_rein_id=? AND status='ABERTA'`).bind(fmt(efeito.reagendarPara), t, String(b.tarefaId), id))
+  }
+  await db.batch(stmts)
+  await rescoreAccount(db, t, id, agora)
+  return c.json({ ok: true, proximoContato: fmt(efeito.reagendarPara) })
+})
+
+/** Clique no botão de WhatsApp: fica no histórico, mas não conta como contato feito (o vendedor ainda precisa registrar o resultado). */
+accounts.post('/:id{[0-9]+}/whatsapp-click', async c => {
+  const id = Number(c.req.param('id'))
+  await contaAcessivel(c, id)
+  await c.env.DB.prepare("INSERT INTO interactions (id, tenant_id, pessoa_rein_id, user_id, channel, note) VALUES (?,?,?,?, 'whatsapp', 'Abriu o WhatsApp')").bind(newId(), tenantOf(c), id, c.get('session').userId).run()
+  return c.json({ ok: true })
+})
+
+/** Mensagem pronta para o cliente a partir de um modelo da empresa. */
+accounts.get('/:id{[0-9]+}/mensagem', async c => {
+  const t = tenantOf(c), id = Number(c.req.param('id')), db = c.env.DB
+  const conta = await contaAcessivel(c, id)
+  const key = c.req.query('modelo') ?? 'oferta'
+  const [modelos, empresa, top] = await Promise.all([
+    ensureTemplates(db, t),
+    db.prepare('SELECT name FROM tenants WHERE id=?').bind(t).first<{ name: string }>(),
+    db.prepare(`SELECT pr.name FROM rein_pedido_itens i JOIN rein_pedidos o ON o.tenant_id=i.tenant_id AND o.rein_id=i.pedido_rein_id AND o.cancelled=0
+                  JOIN rein_produtos pr ON pr.tenant_id=i.tenant_id AND pr.rein_id=i.produto_rein_id WHERE i.tenant_id=? AND o.pessoa_rein_id=? GROUP BY pr.rein_id ORDER BY SUM(i.qty) DESC LIMIT 1`).bind(t, id).first<{ name: string }>(),
+  ])
+  const corpo = modelos.find(m => m.key === key)?.body ?? MODELOS_PADRAO.find(m => m.key === key)?.body
+  if (!corpo) throw fail(404, 'Modelo desconhecido.')
+  return c.json({ texto: renderModelo(corpo, { contato: conta.name, vendedor: c.get('session').name, empresa: empresa?.name, produto: top?.name, link: '' }), whatsapp: conta.whatsapp })
 })

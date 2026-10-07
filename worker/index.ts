@@ -6,6 +6,8 @@ import { rein } from './routes/rein'
 import { sync } from './routes/sync'
 import { accounts } from './routes/accounts'
 import { admin } from './routes/admin'
+import { agenda, templates } from './routes/agenda'
+import { publico } from './routes/publico'
 import { runScheduled } from './sync/engine'
 
 const app = new Hono<App>()
@@ -18,6 +20,7 @@ app.onError((e, c) => {
 })
 
 app.route('/api/auth', auth)
+app.route('/api/publico', publico)   // sem login (pesquisa NPS por token)
 
 // daqui para baixo, só com login — cada rota recebe a empresa da sessão
 const priv = new Hono<App>()
@@ -26,6 +29,8 @@ priv.route('/equipe', team)
 priv.route('/rein', rein)
 priv.route('/sync', sync)
 priv.route('/accounts', accounts)
+priv.route('/agenda', agenda)
+priv.route('/templates', templates)
 priv.route('/admin', admin)   // plataforma (Grupo Semeia): só ADMINS
 app.route('/api', priv)
 

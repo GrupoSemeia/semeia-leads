@@ -5,7 +5,7 @@ import { useMe } from '../me'
 import { brl } from '../api'
 
 export default function Config() {
-  return <><PageHead eyebrow="Empresa" title="Configurações" /><div className="stack"><PlanoCard /><ConexaoErp /><Sincronizacao /><Equipe /></div></>
+  return <><PageHead eyebrow="Empresa" title="Configurações" /><div className="stack"><PlanoCard /><ConexaoErp /><Sincronizacao /><Modelos /><Equipe /></div></>
 }
 
 function ConexaoErp() {
@@ -125,5 +125,22 @@ function PlanoCard() {
       <div><div className="muted" style={{ fontSize: 12 }}>Clientes na carteira</div><strong>{uso(p.clientes, p.limiteClientes)}</strong></div></div>
     {estourou && <div className="note">Sua carteira passou do limite do plano. Nada foi apagado, mas considere subir de plano.</div>}
     <p className="muted" style={{ margin: 0 }}>Vendedor adicional: {brl(p.vendedorExtra)}/mês. Pagando por 1 ano, você ganha 2 meses. Para trocar de plano, fale com o Grupo Semeia Digital.</p>
+  </div>
+}
+
+function Modelos() {
+  const { dados: d, erro, recarregar } = useApi<any>('/templates')
+  const toast = useToast()
+  if (!d) return <Carregando erro={erro} />
+  async function salvar(e: FormEvent<HTMLFormElement>, key: string) {
+    e.preventDefault(); const f = new FormData(e.currentTarget)
+    try { await api(`/templates/${key}`, { method: 'PUT', body: { title: f.get('title'), body: f.get('body') } }); toast('Modelo salvo.'); recarregar() } catch (x: any) { toast(x.message) }
+  }
+  return <div className="card" style={{ padding: 18, display: 'grid', gap: 14 }}>
+    <div><div className="eyebrow">WhatsApp</div><h3>Modelos de mensagem</h3>
+      <p className="muted" style={{ margin: '4px 0 0' }}>Use {'{{contato}}'}, {'{{vendedor}}'}, {'{{empresa}}'}, {'{{produto}}'} e {'{{link}}'} (a pesquisa de satisfação). O vendedor sempre revisa a mensagem antes de enviar.</p></div>
+    {d.itens.map((m: any) => <form key={m.key + m.body} onSubmit={e => salvar(e, m.key)} style={{ display: 'grid', gap: 6 }}>
+      <input name="title" defaultValue={m.title} aria-label="Título" /><textarea name="body" defaultValue={m.body} rows={3} aria-label={`Texto de ${m.title}`} />
+      <div><button className="btn sm">Salvar</button></div></form>)}
   </div>
 }

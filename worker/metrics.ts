@@ -54,3 +54,13 @@ export async function recomputeAccounts(db: D1Database, tenantId: string, agora 
   for (let i = 0; i < stmts.length; i += 80) await db.batch(stmts.slice(i, i + 80))
   return { contas: stmts.length, semDono }
 }
+
+/** Atualiza só o agendamento e a prioridade de UMA conta (depois de registrar contato), com a curva/status já calculados. */
+export async function rescoreAccount(db: D1Database, tenantId: string, pessoaId: number, agora = new Date()) {
+  const a = await db.prepare('SELECT curve, status, orders_12m, last_order_at, avg_interval_days, last_contact_at, reschedule_at FROM accounts WHERE tenant_id=? AND pessoa_rein_id=?').bind(tenantId, pessoaId).first<any>()
+  if (!a) return
+  const p = await loadParams(db, tenantId), ultimo = utc(a.last_order_at)
+  const prox = proximoContato(utc(a.last_contact_at), frequenciaDias(a.curve, a.status, p), agora, utc(a.reschedule_at))
+  const score = scorePrioridade({ curva: a.curve, status: a.status, pedidos12m: a.orders_12m, ultimoPedido: ultimo, intervaloMedioDias: a.avg_interval_days, proximoContato: prox }, agora, p)
+  await db.prepare('UPDATE accounts SET next_contact_due=?, priority_score=? WHERE tenant_id=? AND pessoa_rein_id=?').bind(fmt(prox), score, tenantId, pessoaId).run()
+}
