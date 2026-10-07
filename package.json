@@ -1,0 +1,34 @@
+{
+  "name": "semeia-leads",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Semeia Leads — captação de leads, carteira e pós-venda para distribuidores (Grupo Semeia Digital)",
+  "scripts": {
+    "dev": "vite build && wrangler dev",
+    "dev:web": "vite",
+    "dev:api": "wrangler dev",
+    "build": "tsc -p tsconfig.json --noEmit && vite build",
+    "deploy": "npm run build && wrangler deploy",
+    "db:local": "wrangler d1 migrations apply semeia-leads --local",
+    "db:remote": "wrangler d1 migrations apply semeia-leads --remote",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "hono": "^4.13.11",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-router-dom": "^7.18.4"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260929.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^3.2.4",
+    "wrangler": "^4.143.1"
+  }
+}

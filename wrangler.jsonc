@@ -1,0 +1,23 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "semeia-leads",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-09-25",
+  "compatibility_flags": ["nodejs_compat"],
+  // App React (pasta dist) + API no mesmo Worker. Rotas /api/* passam primeiro pelo Worker.
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    { "binding": "DB", "database_name": "semeia-leads", "database_id": "41fa0c8d-488a-47ff-a20f-05bbb66ef05f", "migrations_dir": "migrations" }
+  ],
+  // ADMINS: e-mails dos administradores da plataforma (veem todas as empresas), separados por vírgula
+  "vars": { "APP_NAME": "Semeia Leads", "ADMINS": "alcyjvneto@gmail.com" },
+  // Sync com o ERP (Sprint 2): crons entram junto com os jobs
+  // "triggers": { "crons": ["*/15 * * * *", "0 5 * * *"] },
+  // segredos (não ficam no código): npx wrangler secret put SECRETS_KEY   (32 bytes em base64: openssl rand -base64 32)
+  "observability": { "enabled": true }
+}

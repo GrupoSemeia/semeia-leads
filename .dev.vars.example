@@ -1,0 +1,4 @@
+# Copie para .dev.vars (não vai para o Git). Em produção: npx wrangler secret put SECRETS_KEY
+# Chave AES-256 em base64 para criptografar o ClientSecret da Rein de cada empresa:
+#   openssl rand -base64 32
+SECRETS_KEY=

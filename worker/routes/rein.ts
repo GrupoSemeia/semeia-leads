@@ -1,0 +1,47 @@
+import { Hono } from 'hono'
+import { type App, type Env, tenantOf, requireRole, clean, fail, encryptSecret, decryptSecret, audit } from '../lib'
+import { reinPing, type ReinCredentials } from '../rein/client'
+
+export const rein = new Hono<App>()
+rein.use('*', requireRole('manager'))
+
+/** Credenciais de uma empresa, já descriptografadas. Só uso interno do Worker. */
+export async function loadReinCreds(env: Env, tenantId: string): Promise<(ReinCredentials & { mock: boolean }) | null> {
+  const r = await env.DB.prepare('SELECT * FROM tenant_rein WHERE tenant_id = ?').bind(tenantId).first<any>()
+  if (!r) return null
+  return { baseUrl: r.base_url, clientId: r.client_id, database: r.database, signIncludeQuery: !!r.sign_include_query, mock: !!r.mock,
+    clientSecret: r.client_secret_enc ? await decryptSecret(env, r.client_secret_enc) : '' }
+}
+
+// O segredo nunca volta ao navegador: só dizemos se está configurado.
+rein.get('/', async c => {
+  const r = await c.env.DB.prepare('SELECT * FROM tenant_rein WHERE tenant_id = ?').bind(tenantOf(c)).first<any>()
+  if (!r) return c.json({})
+  return c.json({ baseUrl: r.base_url, clientId: r.client_id, database: r.database, segredoConfigurado: !!r.client_secret_enc,
+    mock: !!r.mock, assinarComQuery: !!r.sign_include_query, escritaPessoa: !!r.pessoa_write_enabled, escritaPedido: !!r.pedido_write_enabled, atualizadoEm: r.updated_at })
+})
+
+rein.put('/', async c => {
+  const t = tenantOf(c), b = await c.req.json<any>(), db = c.env.DB
+  const baseUrl = clean(b.baseUrl, 200) || 'https://api.rein.net.br'
+  if (!/^https:\/\//.test(baseUrl)) throw fail(400, 'O endereço da API precisa começar com https://')
+  const cur = await db.prepare('SELECT client_secret_enc FROM tenant_rein WHERE tenant_id = ?').bind(t).first<any>()
+  const secretEnc = b.clientSecret ? await encryptSecret(c.env, String(b.clientSecret)) : (cur?.client_secret_enc ?? '')
+  await db.prepare(
+    `INSERT INTO tenant_rein (tenant_id, base_url, client_id, client_secret_enc, database, mock, sign_include_query, pessoa_write_enabled, pedido_write_enabled, updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,datetime('now'))
+     ON CONFLICT(tenant_id) DO UPDATE SET base_url=excluded.base_url, client_id=excluded.client_id, client_secret_enc=excluded.client_secret_enc, database=excluded.database,
+       mock=excluded.mock, sign_include_query=excluded.sign_include_query, pessoa_write_enabled=excluded.pessoa_write_enabled, pedido_write_enabled=excluded.pedido_write_enabled, updated_at=datetime('now')`)
+    .bind(t, baseUrl, clean(b.clientId, 120), secretEnc, clean(b.database, 120), b.mock === false ? 0 : 1, b.assinarComQuery ? 1 : 0, b.escritaPessoa ? 1 : 0, b.escritaPedido ? 1 : 0).run()
+  await audit(db, t, c.get('session').userId, 'rein.update', { mock: b.mock !== false, escritaPedido: !!b.escritaPedido })   // nunca o segredo
+  return c.json({ ok: true })
+})
+
+rein.post('/test', async c => {
+  const creds = await loadReinCreds(c.env, tenantOf(c))
+  if (!creds) throw fail(404, 'Configure a conexão primeiro.')
+  if (creds.mock) return c.json({ ok: true, mock: true, mensagem: 'Modo de teste ligado: usando dados de exemplo, sem falar com o ERP.' })
+  if (!creds.clientId || !creds.clientSecret || !creds.database) throw fail(400, 'Preencha ClientId, ClientSecret e Database.')
+  try { await reinPing(creds) } catch (e: any) { throw fail(502, `Não consegui conectar ao ERP: ${e.message}`) }
+  return c.json({ ok: true, mock: false, mensagem: 'Conexão com o ERP funcionando.' })
+})
