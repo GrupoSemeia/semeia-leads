@@ -21,11 +21,14 @@ import SejaRevendedor from './pages/SejaRevendedor'
 import Catalogo from './pages/Catalogo'
 import { PrePedidos, PrePedido } from './pages/PrePedidos'
 import Nps from './pages/Nps'
+import { alternarTema, aplicarTema, temaAtual } from './tema'
 import Ajuda, { temaDaRota } from './pages/Ajuda'
 
 
+aplicarTema(temaAtual())
+
 function Shell({ me, recarregar, children }: { me: Me; recarregar: () => void; children: ReactNode }) {
-  const [menu, setMenu] = useState(false), [tmenu, setTmenu] = useState(false)
+  const [menu, setMenu] = useState(false), [tmenu, setTmenu] = useState(false), [tema, setTema] = useState(temaAtual())
   const nav = useNavigate(), loc = useLocation()
   useEffect(() => { setMenu(false); setTmenu(false) }, [loc.pathname])
   const gestor = me.usuario.papel !== 'seller'
@@ -55,6 +58,7 @@ function Shell({ me, recarregar, children }: { me: Me; recarregar: () => void; c
         </div>
         <div style={{ flex: 1 }} />
         {me.trialDias !== null ? <NavLink to="/assinatura" className="planpill trial" style={{ textDecoration: 'none' }}>Teste grátis · {me.trialDias} dia(s)</NavLink> : <span className="planpill">{me.plano.nome}</span>}
+        <button className="btn ghost sm tema-btn" onClick={() => setTema(alternarTema())} title={tema === 'claro' ? 'Mudar para o tema escuro' : 'Mudar para o tema claro'} aria-label={tema === 'claro' ? 'Mudar para o tema escuro' : 'Mudar para o tema claro'}><span className="lua"><Icon n="moon" /></span><span className="sol"><Icon n="sun" /></span></button>
         <NavLink to={`/ajuda/${temaDaRota(loc.pathname)}`} className="btn ghost sm" title="Como funciona esta tela" aria-label="Ajuda sobre esta tela"><Icon n="help" /></NavLink>
         <span className="avatar" title={me.usuario.nome}>{iniciais(me.usuario.nome)}</span>
         <button className="btn ghost sm" onClick={sair} title="Sair" aria-label="Sair"><Icon n="logout" /></button>

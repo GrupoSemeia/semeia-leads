@@ -13,6 +13,19 @@
   --f-body:'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
   --f-mono:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace;
 }
+/* Tema claro: mesmos nomes de cores; a barra lateral e o painel de entrada continuam escuros (identidade Semeia) e usam o ciano vivo */
+:root[data-theme="light"]{color-scheme:light;
+  --bg:#F3F6FA; --surface:#FFFFFF; --surface-2:#EDF1F7; --line:#DFE5ED; --line-2:#C6D0DD;
+  --ink:#0B1A2E; --ink-2:#3A4C64; --muted:#586A82;
+  --accent:#00708A; --accent-2:#005A70; --accent-soft:rgba(0,112,138,.10); --on-accent:#FFFFFF;
+  --ok:#1A7F37; --ok-soft:rgba(26,127,55,.12); --warn:#8A5A00; --warn-soft:rgba(190,130,0,.15); --bad:#C62828; --bad-soft:rgba(198,40,40,.10);
+  --shadow:0 1px 2px rgba(11,26,46,.08),0 10px 28px rgba(11,26,46,.10);
+}
+:root[data-theme="light"] .side,:root[data-theme="light"] .login .l{--accent:#00F2FF;--accent-2:#6DF8FF}
+:root[data-theme="light"] .bar .fi,:root[data-theme="light"] .vb{background:var(--accent)}
+:root[data-theme="light"] .card,:root[data-theme="light"] .kpi,:root[data-theme="light"] .day,:root[data-theme="light"] .plan,:root[data-theme="light"] .lead{box-shadow:0 1px 2px rgba(11,26,46,.05)}
+:root[data-theme="light"] .nudge{border-color:rgba(26,127,55,.35)}
+:root[data-theme="light"] .modal-wrap{background:rgba(11,26,46,.45)}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
 html,body{height:100%}
@@ -370,22 +383,21 @@ button.planpill:hover{filter:brightness(.96)}
 
 /* Semeia ajustes */
 input,select,textarea{background:var(--surface-2);border-color:var(--line-2)}
-input:disabled,select:disabled,textarea:disabled{background:rgba(3,32,63,.5);color:var(--muted)}
-input[type=date]{color-scheme:dark}
+input:disabled,select:disabled,textarea:disabled{background:var(--surface-2);color:var(--muted)}
 .phone input[type=date]{color-scheme:light}
 .btn{background:var(--surface-2)}
 .btn.ghost{background:transparent}
 .btn:hover{border-color:var(--accent)}
 .btn.pri:hover{background:var(--accent-2);border-color:var(--accent-2)}
 .card,.kpi,.day,.plan,.lead{box-shadow:0 1px 0 rgba(0,242,255,.03) inset}
-.kpi .v{color:#fff}
+.kpi .v{color:var(--ink)}
 .chip.on{background:var(--accent);color:var(--on-accent);border-color:var(--accent)}
 .fi.lo{background:var(--warn)!important}
 .bar .fi,.vb{background:linear-gradient(90deg,#00C8D6,#00F2FF)}
 .vb{background:linear-gradient(0deg,#00A9B8,#00F2FF)}
 .tenant-btn{background:var(--surface)}
 .avatar{background:var(--accent);color:var(--on-accent)}
-.toast{background:#F2F7FF;color:#000B1A}
+.toast{background:var(--ink);color:var(--bg)}
 .step .b{background:var(--line-2)}
 .ministeps i{background:var(--line-2)}
 .matrix .no{color:var(--line-2)}
@@ -478,3 +490,8 @@ a.btn{display:inline-flex;align-items:center}
 .ajuda-h{font-size:14px;font-weight:600;margin-bottom:8px;color:var(--ink)}
 .ajuda-lista{margin:0;padding-left:20px;display:grid;gap:8px;color:var(--ink-2);line-height:1.5;font-size:14px}
 @media (max-width:760px){.ajuda{grid-template-columns:minmax(0,1fr)}.ajuda-menu{position:static;display:flex;overflow-x:auto;gap:6px;padding-bottom:4px}.ajuda-item{white-space:nowrap;flex:none;border-color:var(--line-2)}}
+
+/* botão de tema */
+.tema-btn .lua{display:none}
+:root[data-theme="light"] .tema-btn .sol{display:none}
+:root[data-theme="light"] .tema-btn .lua{display:block}

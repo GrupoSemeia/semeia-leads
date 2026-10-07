@@ -92,6 +92,9 @@ npx wrangler secret put SECRETS_KEY   # openssl rand -base64 32
 - Conversão (`convertLeads`, no fim de cada sync): liga o lead ao cadastro do ERP pelo CNPJ e, no primeiro pedido não cancelado, vira `CONVERTIDO`. **O ERP vence:** o vendedor do lead só assume o cliente se a conta ainda estiver sem dono (`donoNaConversao`), e então a troca vai para a fila do ERP.
 - Cadastro no ERP (`POST /api/leads/:id/push-erp`): mesmo padrão de segurança do pedido (trava `pessoa_write_enabled`, config `settings.pessoa_erp`, `ENVIANDO` reservado, nunca repete, gestor resolve com `/erp-resolver`). ⚠️ Id do tipo "Prospect" e campos obrigatórios do `PUT /pessoa` são hipóteses até a Rein confirmar.
 
+## Tema claro/escuro (`src/tema.ts`, tokens em `src/styles.css`)
+- Padrão = tema do sistema; botão lua/sol no topo guarda a escolha em `localStorage` (`semeialeads_tema`). `index.html` aplica o tema antes de pintar (sem piscar). Tema claro = `:root[data-theme="light"]` redefinindo os mesmos tokens (`--bg`, `--ink`, `--accent`…). **Barra lateral e painel esquerdo do login ficam escuros nos dois temas** e usam o ciano vivo (`--accent` redefinido dentro deles). Não use cores fixas (`#fff`, `#000B1A`) em tela nova: use os tokens. A landing (`public/inicio.html`) e as telas públicas do cliente final têm estilo próprio.
+
 ## Ajuda dentro do app (`src/pages/Ajuda.tsx`)
 - Menu "Suporte → Ajuda" (`/ajuda/:tema`) e botão "?" no topo, que abre o assunto da tela atual (`temaDaRota`). Um assunto por tela + "Por onde começar" e "Palavras do sistema"; gestor/admin e administrador da plataforma veem os assuntos extras. Texto em `TEMAS` (português simples). **Mudou uma tela? Atualize o assunto dela aqui** (`src/ajuda.test.ts` confere ids e o mapa rota → assunto).
 
