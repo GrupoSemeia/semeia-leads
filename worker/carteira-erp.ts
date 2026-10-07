@@ -1,3 +1,5 @@
+import { notificarGestores, linkApp } from './notify'
+import { avisoErroTroca } from './domain/emails'
 /** Troca de carteira (só o admin) e envio da troca ao ERP. O ERP manda na carteira; o app só escreve nele atrás de trava, uma tentativa por vez. */
 import { type Env, newId, audit } from './lib'
 import { mesclarConfigPessoa, ABERTAS, type ConfigPessoaErp } from './domain/leads'
@@ -74,14 +76,14 @@ export async function processarVendedorErp(env: Env, t: string, max = 10): Promi
     try { atual = await api.getPessoa(item.pessoa) } catch (e: any) {
       const msg = String(e?.message ?? e).slice(0, 300), tentativas = item.attempts + 1
       await marcar(item.id, tentativas >= 3 ? 'ERRO' : 'PENDENTE', `Não consegui ler o cadastro no ERP: ${msg}`, `, attempts=${tentativas}`)   // nada foi gravado: seguro tentar de novo
-      if (tentativas >= 3) r.erros++
+      if (tentativas >= 3) { r.erros++; await avisarErro(env, t, item, msg) }
       continue
     }
     const corpo = montarAtualizacaoVendedor(atual, cfg.campoVendedor, m?.rein_user_id ?? null)
-    if (!corpo.ok) { await marcar(item.id, 'ERRO', corpo.erro); r.erros++; continue }
+    if (!corpo.ok) { await marcar(item.id, 'ERRO', corpo.erro); r.erros++; await avisarErro(env, t, item, corpo.erro); continue }
     try { await api.updatePessoa(item.pessoa, corpo.corpo) } catch (e: any) {
       await marcar(item.id, 'ERRO', `O ERP não confirmou: ${String(e?.message ?? e).slice(0, 250)}. Confira no ERP se o vendedor já mudou antes de reenviar.`)
-      await audit(db, t, item.por, 'carteira.erp_erro', { pessoa: item.pessoa }); r.erros++; continue
+      await audit(db, t, item.por, 'carteira.erp_erro', { pessoa: item.pessoa }); r.erros++; await avisarErro(env, t, item, 'O ERP não confirmou a gravação.'); continue
     }
     await marcar(item.id, 'ENVIADO', null)
     // o espelho local passa a refletir o ERP já agora (senão o próximo recálculo leria o vendedor antigo e desfaria a troca)
@@ -94,4 +96,11 @@ export async function processarVendedorErp(env: Env, t: string, max = 10): Promi
   }
   r.restantes = await restantes()
   return r
+}
+
+/** Avisa o gestor (uma vez por cliente e troca) que a troca de vendedor não chegou ao ERP. */
+async function avisarErro(env: Env, t: string, item: { id: string; pessoa: number; para: string }, erro: string) {
+  const p = await env.DB.prepare('SELECT name FROM rein_pessoas WHERE tenant_id=? AND rein_id=?').bind(t, item.pessoa).first<{ name: string }>().catch(() => null)
+  const u = await env.DB.prepare('SELECT name FROM users WHERE id=?').bind(item.para).first<{ name: string }>().catch(() => null)
+  await notificarGestores(env, t, { chave: `troca:${item.id}`, msg: avisoErroTroca({ cliente: p?.name ?? `cliente ${item.pessoa}`, para: u?.name ?? 'outro vendedor', erro, link: linkApp(env, '/configuracoes') }) })
 }

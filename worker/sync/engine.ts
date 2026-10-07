@@ -1,3 +1,5 @@
+import { notificarGestores, linkApp } from '../notify'
+import { avisoSyncFalhou, avisoTesteAcabando } from '../domain/emails'
 /**
  * Motor do sync Rein → espelho local (D1). Retomável: cada chamada a `runSlice` faz no máximo
  * MAX_CALLS chamadas à Rein (limite de subrequests do Worker) e guarda o cursor em `sync_state`.
@@ -228,7 +230,21 @@ export async function runScheduled(env: Env) {
       }
       for (const j of jobs) await runSlice(env, tenant, j)
       if (real) await processarVendedorErp(env, tenant)   // trocas de vendedor feitas no app → ERP (só roda com campo configurado e escrita ligada)
-    } catch (e) { console.error('sync agendado falhou', tenant, e) }
+    } catch (e) {
+      console.error('sync agendado falhou', tenant, e)
+      await notificarGestores(env, tenant, { chave: `sync:${now.toISOString().slice(0, 10)}`, papeis: ['admin'], msg: avisoSyncFalhou({ job: 'automática', erro: String((e as any)?.message ?? e), link: linkApp(env, '/configuracoes') }) })   // no máximo 1 por dia
+    }
+  }
+  await avisarFimDoTeste(env, now)
+}
+
+/** Teste grátis acabando (3 dias ou menos): avisa o admin uma vez por empresa (chave por data de fim). */
+async function avisarFimDoTeste(env: Env, now: Date) {
+  const lim = new Date(now.getTime() + 3 * 864e5).toISOString()
+  const r = await env.DB.prepare("SELECT id, trial_until FROM tenants WHERE plan='trial' AND trial_until IS NOT NULL AND trial_until > ? AND trial_until <= ?").bind(now.toISOString(), lim).all<any>()
+  for (const t of r.results) {
+    const dias = Math.max(0, Math.ceil((new Date(t.trial_until).getTime() - now.getTime()) / 864e5))
+    await notificarGestores(env, t.id, { chave: `teste:${t.trial_until}`, papeis: ['admin'], msg: avisoTesteAcabando({ dias, link: linkApp(env, '/assinatura') }) })
   }
 }
 const JOBS_RESUMIVEIS: JobName[] = ['cadastros', 'pedidos', 'backfill']

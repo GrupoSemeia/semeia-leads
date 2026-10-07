@@ -61,12 +61,19 @@ auth.get('/me', async c => {
   return c.json({
     logado: true,
     plano,
-    usuario: { id: s.userId, nome: s.name, email: s.email, papel: s.role },
+    usuario: { id: s.userId, nome: s.name, email: s.email, papel: s.role, avisosEmail: !!(await db.prepare('SELECT notify_email AS n FROM members WHERE tenant_id=? AND user_id=?').bind(s.tenantId, s.userId).first<any>())?.n },
     empresa: tenant,
     empresas: list.results,
     trialDias: tenant.plan === 'trial' && days !== null && days > 0 ? days : null,
     admin: s.platformAdmin,
   })
+})
+
+auth.patch('/preferencias', requireLogin, async c => {
+  const b = await c.req.json<any>(), s = c.get('session')
+  if (typeof b.avisosEmail !== 'boolean') throw fail(400, 'Informe se quer receber avisos por e-mail.')
+  await c.env.DB.prepare('UPDATE members SET notify_email=? WHERE tenant_id=? AND user_id=?').bind(b.avisosEmail ? 1 : 0, s.tenantId, s.userId).run()
+  return c.json({ ok: true })
 })
 
 auth.post('/switch-tenant', requireLogin, async c => {

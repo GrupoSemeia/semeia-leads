@@ -2,7 +2,7 @@ import { createContext, useContext } from 'react'
 
 export type Me = {
   logado: boolean
-  usuario: { id: string; nome: string; email: string; papel: 'admin' | 'manager' | 'seller' }
+  usuario: { id: string; nome: string; email: string; papel: 'admin' | 'manager' | 'seller'; avisosEmail?: boolean }
   empresa: { id: string; name: string; city: string; plan: string }
   empresas: { id: string; name: string; city: string }[]
   trialDias: number | null

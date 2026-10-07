@@ -1,3 +1,5 @@
+import { notificarGestores, linkApp } from '../notify'
+import { avisoDetrator, avisoLeadSite } from '../domain/emails'
 import { Hono } from 'hono'
 import { type App, fail, newId, clean, loadTenantPlano } from '../lib'
 import { nivelDe } from '../plans'
@@ -30,6 +32,10 @@ publico.post('/nps/:token', async c => {
   if (insatisfeito(b.nota)) stmts.push(db.prepare("INSERT OR IGNORE INTO tasks (id, tenant_id, type, pessoa_rein_id, ref_id, due_at, reason, dedupe_key) VALUES (?,?, 'TRATAR_NPS', ?,?, datetime('now'), ?, ?)")
     .bind(newId(), r.tenant_id, r.pessoa_rein_id, r.pedido_rein_id, `Nota ${b.nota} na pesquisa de satisfação`, `TRATAR_NPS:pedido:${r.pedido_rein_id}`))
   await db.batch(stmts)
+  if (insatisfeito(b.nota)) {
+    const aviso = notificarGestores(c.env, r.tenant_id, { chave: `nps:${r.pedido_rein_id}`, msg: avisoDetrator({ cliente: r.cliente, nota: b.nota, comentario: clean(b.comentario, 300) || null, link: linkApp(c.env, '/hoje') }) })
+    try { c.executionCtx.waitUntil(aviso) } catch { await aviso }
+  }
   return c.json({ ok: true })
 })
 
@@ -54,6 +60,10 @@ publico.post('/revendedor/:slug', async c => {
     db.prepare("SELECT COUNT(*) AS n FROM leads WHERE tenant_id=? AND source='site' AND created_at >= datetime('now','-1 day')").bind(t.id).first<{ n: number }>(),
   ])
   if ((porTel?.n ?? 0) >= LIMITE_TELEFONE_DIA || (porEmpresa?.n ?? 0) >= LIMITE_EMPRESA_DIA) throw fail(429, 'Recebemos muitos pedidos deste contato hoje. Tente amanhã ou fale direto com a empresa.')
-  await criarLead(c.env, t.id, { cnpj: b.cnpj, razaoSocial: b.razaoSocial, contato: b.contato, whatsapp: b.whatsapp, cidade: b.cidade, uf: b.uf, segmento: b.segmento }, { criadoPor: null, publico: true })
+  const lead = await criarLead(c.env, t.id, { cnpj: b.cnpj, razaoSocial: b.razaoSocial, contato: b.contato, whatsapp: b.whatsapp, cidade: b.cidade, uf: b.uf, segmento: b.segmento }, { criadoPor: null, publico: true })
+  if (!lead.duplicado && lead.id) {
+    const aviso = notificarGestores(c.env, t.id, { chave: `lead:${lead.id}`, limitePorHora: 10, msg: avisoLeadSite({ empresa: clean(b.razaoSocial, 80) || 'Empresa nova', contato: clean(b.contato, 80), cidade: clean(b.cidade, 60) || null, link: linkApp(c.env, '/leads') }) })
+    try { c.executionCtx.waitUntil(aviso) } catch { await aviso }
+  }
   return c.json({ ok: true })   // mesma resposta para lead novo, repetido ou CNPJ que já é cliente: nada vaza sobre a carteira da empresa
 })

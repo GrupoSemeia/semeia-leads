@@ -1,3 +1,5 @@
+import { notificarGestores, linkApp } from '../notify'
+import { avisoPagamentoAtrasado } from '../domain/emails'
 import { Hono } from 'hono'
 import { type App, tenantOf, requireRole, fail, igualConstante, audit } from '../lib'
 import { chamarAsaas, type RespostaAsaas } from '../asaas'
@@ -83,5 +85,13 @@ asaasWebhook.post('/', async c => {
   if (!token || !(await igualConstante(c.req.header('asaas-access-token') ?? '', token))) return c.json({ erro: 'Não autorizado.' }, 401)
   const corpo = await c.req.json<any>().catch(() => ({}))
   await tratarEvento(c.env.DB, String(corpo.event ?? ''), corpo)   // cobranças que não são de assinaturas nossas são ignoradas
+  if (corpo.event === 'PAYMENT_OVERDUE' && corpo.payment?.id && corpo.payment.subscription) {
+    const sub = await c.env.DB.prepare('SELECT tenant_id FROM subscriptions WHERE asaas_subscription_id=?').bind(String(corpo.payment.subscription)).first<{ tenant_id: string }>()
+    if (sub) {
+      const v = Number(corpo.payment.value), venc = String(corpo.payment.dueDate ?? '').split('-').reverse().join('/')
+      const aviso = notificarGestores(c.env, sub.tenant_id, { chave: `atraso:${corpo.payment.id}`, papeis: ['admin'], msg: avisoPagamentoAtrasado({ valor: Number.isFinite(v) ? v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) : 'sua mensalidade', vencimento: venc || 'data informada na cobrança', link: linkApp(c.env, '/configuracoes') }) })
+      try { c.executionCtx.waitUntil(aviso) } catch { await aviso }
+    }
+  }
   return c.json({ ok: true })
 })

@@ -7,7 +7,7 @@ import { app } from './index'
  */
 const ESPERADAS = [
   'GET /',
-  'POST /api/auth/signup', 'POST /api/auth/login', 'GET /api/auth/me', 'POST /api/auth/switch-tenant', 'POST /api/auth/invite/:token', 'POST /api/auth/esqueci', 'GET /api/auth/redefinir/:token', 'POST /api/auth/redefinir/:token',
+  'POST /api/auth/signup', 'POST /api/auth/login', 'GET /api/auth/me', 'POST /api/auth/switch-tenant', 'POST /api/auth/invite/:token', 'POST /api/auth/esqueci', 'PATCH /api/auth/preferencias', 'GET /api/auth/redefinir/:token', 'POST /api/auth/redefinir/:token',
   'GET /api/publico/nps/:token', 'POST /api/publico/nps/:token', 'GET /api/publico/revendedor/:slug', 'POST /api/publico/revendedor/:slug',
   'GET /api/equipe', 'POST /api/equipe/invites', 'PATCH /api/equipe/:userId',
   'GET /api/rein', 'PUT /api/rein', 'POST /api/rein/test', 'GET /api/rein/pedido', 'PUT /api/rein/pedido', 'GET /api/rein/pessoa', 'PUT /api/rein/pessoa',
