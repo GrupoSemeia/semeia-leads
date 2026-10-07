@@ -16,8 +16,8 @@
   ],
   // ADMINS: e-mails dos administradores da plataforma (veem todas as empresas), separados por vírgula
   "vars": { "APP_NAME": "Semeia Leads", "ADMINS": "alcyjvneto@gmail.com" },
-  // Sync com o ERP (Sprint 2): crons entram junto com os jobs
-  // "triggers": { "crons": ["*/15 * * * *", "0 5 * * *"] },
+  // Sync com o ERP: a cada 15 min (pedidos recentes; cadastros às 05h UTC = 02h Brasília; continua cargas pela metade)
+  "triggers": { "crons": ["*/15 * * * *"] },
   // segredos (não ficam no código): npx wrangler secret put SECRETS_KEY   (32 bytes em base64: openssl rand -base64 32)
   "observability": { "enabled": true }
 }

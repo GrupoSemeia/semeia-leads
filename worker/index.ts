@@ -3,6 +3,8 @@ import { type App, type Env, AppError, requireLogin } from './lib'
 import { auth } from './routes/auth'
 import { team } from './routes/team'
 import { rein } from './routes/rein'
+import { sync } from './routes/sync'
+import { runScheduled } from './sync/engine'
 
 const app = new Hono<App>()
 
@@ -20,9 +22,14 @@ const priv = new Hono<App>()
 priv.use('*', requireLogin)
 priv.route('/equipe', team)
 priv.route('/rein', rein)
+priv.route('/sync', sync)
 app.route('/api', priv)
 
 app.all('/api/*', c => c.json({ erro: 'Rota não encontrada.' }, 404))
 app.all('*', c => c.env.ASSETS.fetch(c.req.raw))
 
-export default { fetch: app.fetch } satisfies ExportedHandler<Env>
+export default {
+  fetch: app.fetch,
+  // a cada 15 min: continua syncs pela metade e roda os vencidos (pedidos a cada 15 min, cadastros às 02h de Brasília)
+  async scheduled(_ev: ScheduledController, env: Env, ctx: ExecutionContext) { ctx.waitUntil(runScheduled(env)) },
+} satisfies ExportedHandler<Env>

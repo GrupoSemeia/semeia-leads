@@ -51,6 +51,12 @@ npm run db:remote                 # migrações no D1 de produção
 npx wrangler secret put SECRETS_KEY   # openssl rand -base64 32
 ```
 
+## Sync com o ERP (`worker/sync/`, `worker/rein/`)
+- `ReinApi` (`worker/rein/api.ts`) é a única interface que o sync conhece; implementações real e mock (`mock.ts`, "modo de teste" por empresa). Nomes de campos da Rein ficam **só** em `normalize.ts` (⚠️ hipóteses; ajustar lá quando a Rein confirmar). Datas sem fuso da Rein são tratadas como Brasília (`ERP_UTC_OFFSET_HOURS`).
+- Espelho `rein_*` (migração 0002): só o sync escreve. `rein_precos.cost/margin` são sensíveis — nunca devolver ao vendedor. `raw` não guarda imagens nem margens.
+- Jobs: `backfill` (manual, 1x), `cadastros` (diário 02h Brasília), `pedidos` (janela de 3 dias, a cada 15 min). Cada chamada a `runSlice` faz no máximo 25 chamadas à Rein e salva o cursor em `sync_state`; o navegador (`POST /api/sync/:job/run`) ou o cron repetem até `done`. Trava `lease_until` evita duas fatias ao mesmo tempo.
+- Pedidos: a lista pode vir sem itens → fila `items_synced=0` buscada por `/pedido/{id}` (2 em paralelo). Registro que some do ERP só ganha `deleted_at` após 2 syncs completos sem aparecer.
+
 ## Onde paramos
-**Sprint 0 concluída** (fundação): cadastro/login/convite, equipe, tela de conexão com o ERP (segredo criptografado, modo teste), cliente Rein com HMAC testado, migração 0001. Próximo: **Sprint 1/2** (métodos tipados da Rein, modo mock com fixtures, sync). Antes do sync real, confirmar com a Rein as perguntas de `docs/02-api-rein.md` §6.
+**Sprints 0, 1 e 2 concluídas** com o modo de teste: fundação, cliente Rein tipado (HMAC, paginação, retry), mock, sync retomável com cron e painel. Migrações 0001 e 0002 aplicadas no D1 de produção. Próximo: **Sprint 3** (`worker/domain/`: status, curva ABC, frequência, score, agenda; telas Carteira e Cliente). **Antes de ligar a Rein real:** enviar à Rein as perguntas de `docs/02-api-rein.md` §6 e ajustar `normalize.ts`/`api.ts` (paginação, datas, formato das listas) com a primeira resposta real.
 Pendências de infraestrutura: secret `SECRETS_KEY` e deploy na Cloudflare, domínio, CI, PWA (manifest/service worker), landing page.

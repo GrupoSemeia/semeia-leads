@@ -3,7 +3,7 @@ import { api, PAPEL } from '../api'
 import { PageHead, Carregando, useApi, useToast, copiar } from '../ui'
 
 export default function Config() {
-  return <><PageHead eyebrow="Empresa" title="Configurações" /><div className="stack"><ConexaoErp /><Equipe /></div></>
+  return <><PageHead eyebrow="Empresa" title="Configurações" /><div className="stack"><ConexaoErp /><Sincronizacao /><Equipe /></div></>
 }
 
 function ConexaoErp() {
@@ -69,5 +69,39 @@ function Equipe() {
       <button className="btn pri">Convidar</button>
     </form>
     {link && <div className="linkbox"><span className="mono ell">{link}</span> <button className="btn sm" onClick={() => copiar(link, toast)}>Copiar link</button></div>}
+  </div>
+}
+
+const NOME_JOB: Record<string, string> = { backfill: 'Carga inicial (24 meses)', cadastros: 'Atualizar cadastros', pedidos: 'Atualizar pedidos' }
+const QUANDO = (s: string | null) => (s ? new Date(s.replace(' ', 'T') + 'Z').toLocaleString('pt-BR') : 'nunca')
+
+function Sincronizacao() {
+  const { dados: d, erro, recarregar } = useApi<any>('/sync')
+  const [rodando, setRodando] = useState<string | null>(null), [prog, setProg] = useState<any>(null), [msg, setMsg] = useState('')
+  if (!d) return <Carregando erro={erro} />
+  async function rodar(job: string, reiniciar: boolean) {
+    setRodando(job); setMsg(''); setProg(null)
+    try {
+      let p: any, vezes = 0, primeira = true
+      do {   // cada chamada faz uma fatia; repete até terminar
+        p = await api(`/sync/${job}/run`, { body: { reiniciar: reiniciar && primeira } }); primeira = false
+        setProg(p); if (p.erro) throw new Error(p.erro)
+        if (!p.done && ++vezes > 400) throw new Error('Demorou demais; tente de novo.')
+      } while (!p.done)
+      setMsg('Sincronização concluída.')
+    } catch (x: any) { setMsg(x.message) } finally { setRodando(null); recarregar() }
+  }
+  const c = d.contagens
+  return <div className="card" style={{ padding: 18, display: 'grid', gap: 12 }}>
+    <div><div className="eyebrow">Dados do ERP</div><h3>Sincronização</h3>
+      <p className="muted" style={{ margin: '4px 0 0' }}>Copia clientes, produtos e pedidos do ERP para o app. Faça a carga inicial uma vez; depois o app se atualiza sozinho (pedidos a cada 15 min, cadastros de madrugada).</p></div>
+    <div className="kpis">{[['Clientes', c.clientes], ['Produtos', c.produtos], ['Vendedores', c.vendedores], ['Pedidos', c.pedidos]].map(([l, v]) => <div className="kpi" key={l as string}><span>{l}</span><b className="num">{v}</b></div>)}</div>
+    {c.pedidosSemItens > 0 && <div className="muted">{c.pedidosSemItens} pedido(s) ainda sem os itens — rode “Atualizar pedidos”.</div>}
+    {d.jobs.map((j: any) => <div className="spread" key={j.job}>
+      <div><strong>{NOME_JOB[j.job]}</strong><div className="muted">Última vez: {QUANDO(j.ultimoOk)}{j.status === 'running' && ' · em andamento'}{j.erro && ` · erro: ${j.erro}`}</div></div>
+      <div className="row">{j.status === 'running' && <button className="btn sm" disabled={!!rodando} onClick={() => rodar(j.job, false)}>Continuar</button>}
+        <button className="btn sm pri" disabled={!!rodando} onClick={() => rodar(j.job, true)}>{rodando === j.job ? 'Sincronizando…' : 'Rodar agora'}</button></div></div>)}
+    {prog && rodando && <div className="note">{prog.etapa} · passo {prog.passo} de {prog.passos}</div>}
+    {msg && <div className="note">{msg}</div>}
   </div>
 }

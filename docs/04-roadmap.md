@@ -17,16 +17,16 @@ Marque `[x]` ao concluir. Cada sprint termina com algo demonstrável à AC3.
 ## Sprint 1 — Cliente Rein (semana 2)
 - [x] `worker/rein/client.ts`: assinatura HMAC (WebCrypto) + retry/timeout, com testes
 - [ ] Vetor fixo contra a Rein real (validar ⚠️)
-- [ ] Métodos tipados (zod): pessoas, pessoa, usuarios, produtos, produto, tabelasPreco, categorias, marcas, pedidos, pedido
-- [ ] Paginação genérica, retry/backoff, concorrência máx. 2, modo `REIN_MOCK` com fixtures
-- [ ] Script `pnpm rein:ping` que chama `/api/v1/usuario` e imprime resultado (validar auth real)
+- [x] Métodos tipados (`worker/rein/api.ts` + `normalize.ts`, zod no Id): pessoas, usuarios, produtos (preço por tabela), tabelas de preço, categorias, marcas, pedidos (lista e detalhe). Falta pessoa/{id} e produto/{id} individuais (só quando houver uso)
+- [x] Paginação genérica (para em página vazia ou repetida), retry/backoff, concorrência máx. 2, modo de teste (`worker/rein/mock.ts`: 60 clientes, 40 produtos, ~1.350 pedidos em 24 meses)
+- [x] Botão "Testar conexão" em Configurações (chama `/api/v1/usuario`) — falta rodar com credenciais reais
 - [ ] Responder/registrar as ⚠️ VALIDAR de `docs/02-api-rein.md` com o que for observado
 
 ## Sprint 2 — Sync (semana 3)
-- [ ] pg-boss + `SyncRun`
-- [ ] `sync.backfill`, `sync.cadastros`, `sync.pedidos` (janela móvel)
-- [ ] Extração de imagens de produto para storage
-- [ ] Tela admin "Sync/Logs"
+- [x] `sync_runs` + `sync_state` (cursor retomável, trava por empresa); Cron Trigger a cada 15 min no lugar do pg-boss
+- [x] `backfill` (cadastros + 24 meses de pedidos + itens), `cadastros`, `pedidos` (janela móvel de 3 dias) — `worker/sync/`. Sync automático só roda para empresas com ERP real e depois da carga inicial
+- [ ] Extração de imagens de produto para R2 (hoje a imagem é descartada do `raw`; R2 ainda não criado)
+- [x] Painel "Sincronização" em Configurações (contagens, botões, progresso, último erro). Falta tela de logs detalhada e visão de plataforma
 - [ ] Mapeamento `User.reinUsuarioId` (tela de usuários)
 
 ## Sprint 3 — Domínio e carteira (semana 4)
