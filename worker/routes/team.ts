@@ -1,5 +1,6 @@
 import { Hono } from 'hono'
-import { type App, tenantOf, requireRole, randomToken, sha256, clean, fail, audit } from '../lib'
+import { recomputeAccounts } from '../metrics'
+import { type App, tenantOf, requireRole, randomToken, sha256, clean, fail, audit, assertVagaVendedor } from '../lib'
 
 export const team = new Hono<App>()
 team.use('*', requireRole('manager'))
@@ -17,6 +18,7 @@ team.post('/invites', async c => {
   const t = tenantOf(c), b = await c.req.json<any>()
   const email = clean(b.email, 120).toLowerCase(), role = ['manager', 'seller'].includes(b.papel) ? b.papel : 'seller'
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) throw fail(400, 'E-mail inválido.')
+  if (role === 'seller') await assertVagaVendedor(c.env.DB, t)
   const token = randomToken(24)
   await c.env.DB.prepare('INSERT INTO invites (id, tenant_id, email, role, expires_at) VALUES (?,?,?,?,?)')
     .bind(await sha256(token), t, email, role, new Date(Date.now() + 7 * 864e5).toISOString()).run()
@@ -32,8 +34,16 @@ team.patch('/:userId', async c => {
   if (!m) throw fail(404, 'Pessoa não encontrada.')
   if (m.role === 'admin' && me.role !== 'admin') throw fail(403, 'Só um administrador altera outro administrador.')
   const role = ['manager', 'seller'].includes(b.papel) && m.role !== 'admin' ? b.papel : m.role
+  if (role === 'seller' && b.ativo !== false) await assertVagaVendedor(c.env.DB, t, uid)   // reativar ou virar vendedor ocupa uma vaga
   await c.env.DB.prepare('UPDATE members SET role = ?, active = ?, rein_user_id = ?, whatsapp = ? WHERE tenant_id = ? AND user_id = ?')
     .bind(role, b.ativo === false ? 0 : 1, Number.isInteger(b.reinUsuarioId) ? b.reinUsuarioId : null, clean(b.whatsapp, 30), t, uid).run()
   await audit(c.env.DB, t, me.userId, 'member.update', { uid })
+  if (b.reinUsuarioId !== undefined) await recomputeAccounts(c.env.DB, t)   // vínculo novo → clientes sem dono caem na carteira de quem vendeu por último
   return c.json({ ok: true })
+})
+
+/** Vendedores do ERP (para ligar cada pessoa da equipe ao vendedor dos pedidos). */
+team.get('/vendedores-erp', async c => {
+  const r = await c.env.DB.prepare('SELECT rein_id AS id, name FROM rein_usuarios WHERE tenant_id=? AND deleted_at IS NULL ORDER BY name').bind(tenantOf(c)).all()
+  return c.json({ itens: r.results })
 })

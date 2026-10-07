@@ -1,5 +1,6 @@
 import type { Context, MiddlewareHandler } from 'hono'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
+import { nivelDe, limiteVendedores, PLANOS, tierEfetivo } from './plans'
 
 export type Env = { DB: D1Database; ASSETS: Fetcher; APP_NAME: string; ADMINS?: string; SECRETS_KEY?: string }
 export type Role = 'admin' | 'manager' | 'seller'
@@ -115,4 +116,34 @@ export const tenantOf = (c: C) => c.get('session').tenantId
 export async function audit(db: D1Database, tenantId: string, userId: string | null, action: string, detail?: unknown) {
   await db.prepare('INSERT INTO audit_log (id, tenant_id, user_id, action, detail) VALUES (?,?,?,?,?)')
     .bind(newId(), tenantId, userId, action, detail === undefined ? null : JSON.stringify(detail)).run()
+}
+
+/* ---------- planos: acesso por nível e limite de vendedores ---------- */
+export async function loadTenantPlano(db: D1Database, tenantId: string) {
+  const t = await db.prepare('SELECT plan, tier, trial_until, extra_sellers FROM tenants WHERE id = ?').bind(tenantId).first<any>()
+  if (!t) throw fail(404, 'Empresa não encontrada.')
+  return t as { plan: string; tier: string; trial_until: string | null; extra_sellers: number }
+}
+/** Libera a rota só para empresas no nível indicado ou acima. Os dados continuam guardados quando o plano cai. */
+export const requireNivel = (n: number): MiddlewareHandler<App> => async (c, next) => {
+  const t = await loadTenantPlano(c.env.DB, tenantOf(c))
+  if (t.plan === 'suspenso') return c.json({ erro: 'Conta suspensa. Fale com o suporte.' }, 403)
+  if (nivelDe(t) < n) {
+    const nome = Object.values(PLANOS).find(p => p.nivel === n)?.nome
+    return c.json({ erro: `Disponível a partir do plano ${nome}.`, nivel: n }, 403)
+  }
+  await next()
+}
+/** Garante que há vaga de vendedor (ativos + convites pendentes de vendedor). `ignorar` = usuário que já ocupa a vaga. */
+export async function assertVagaVendedor(db: D1Database, tenantId: string, ignorar?: string) {
+  const t = await loadTenantPlano(db, tenantId), limite = limiteVendedores(t)
+  const r = await db.prepare(
+    `SELECT (SELECT COUNT(*) FROM members WHERE tenant_id=?1 AND role='seller' AND active=1 AND user_id <> COALESCE(?2,'')) +
+            (SELECT COUNT(*) FROM invites WHERE tenant_id=?1 AND role='seller' AND used_at IS NULL AND expires_at > ?3) AS n`).bind(tenantId, ignorar ?? null, new Date().toISOString()).first<{ n: number }>()
+  if ((r?.n ?? 0) >= limite) throw fail(403, `Seu plano ${PLANOS[tierEfetivo(t)].nome} inclui ${limite} vendedor(es). Contrate um vendedor adicional ou mude de plano.`)
+}
+/** Só administradores da plataforma (Grupo Semeia). Quem não é recebe 404. */
+export const requirePlatformAdmin: MiddlewareHandler<App> = async (c, next) => {
+  if (!c.get('session').platformAdmin) return c.json({ erro: 'Rota não encontrada.' }, 404)
+  await next()
 }

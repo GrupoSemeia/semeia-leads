@@ -1,24 +1,17 @@
-import { StrictMode, createContext, useContext, useEffect, useState, type ReactNode } from 'react'
+import { StrictMode, useEffect, useState, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Routes, Route, NavLink, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import './styles.css'
 import { api, iniciais } from './api'
 import { Icon, Logo, ToastProvider, Carregando } from './ui'
+import { MeCtx, type Me } from './me'
 import Entrar from './pages/Entrar'
 import Convite from './pages/Convite'
 import Config from './pages/Config'
 import EmBreve from './pages/EmBreve'
+import Carteira from './pages/Carteira'
+import Cliente from './pages/Cliente'
 
-export type Me = {
-  logado: boolean
-  usuario: { id: string; nome: string; email: string; papel: 'admin' | 'manager' | 'seller' }
-  empresa: { id: string; name: string; city: string; plan: string }
-  empresas: { id: string; name: string; city: string }[]
-  trialDias: number | null
-  admin?: boolean
-}
-const MeCtx = createContext<{ me: Me; recarregar: () => void } | null>(null)
-export const useMe = () => useContext(MeCtx)!
 
 function Shell({ me, recarregar, children }: { me: Me; recarregar: () => void; children: ReactNode }) {
   const [menu, setMenu] = useState(false), [tmenu, setTmenu] = useState(false)
@@ -48,7 +41,7 @@ function Shell({ me, recarregar, children }: { me: Me; recarregar: () => void; c
           {tmenu && me.empresas.length > 1 && <div className="menu">{me.empresas.map(o => <button key={o.id} onClick={() => trocar(o.id)}><span style={{ flex: 1 }}><strong style={{ display: 'block' }}>{o.name}</strong><small className="muted">{o.city}</small></span>{o.id === me.empresa.id && <Icon n="check" s={16} />}</button>)}</div>}
         </div>
         <div style={{ flex: 1 }} />
-        {me.trialDias !== null && <span className="planpill trial">Teste grátis · {me.trialDias} dia(s)</span>}
+        {me.trialDias !== null ? <span className="planpill trial">Teste grátis · {me.trialDias} dia(s)</span> : <span className="planpill">{me.plano.nome}</span>}
         <span className="avatar" title={me.usuario.nome}>{iniciais(me.usuario.nome)}</span>
         <button className="btn ghost sm" onClick={sair} title="Sair" aria-label="Sair"><Icon n="logout" /></button>
       </header>
@@ -69,7 +62,8 @@ function App() {
     <Shell me={me} recarregar={carregar}>
       <Routes>
         <Route path="/" element={<EmBreve eyebrow="Agenda do dia" titulo="Hoje" texto="Aqui vai aparecer quem você deve contatar hoje, em ordem de prioridade. Chega na Sprint 4." />} />
-        <Route path="/carteira" element={<EmBreve eyebrow="Clientes" titulo="Carteira" texto="Sua carteira com curva ABC e status, vinda do ERP. Chega na Sprint 3." />} />
+        <Route path="/carteira" element={<Carteira />} />
+        <Route path="/carteira/:id" element={<Cliente />} />
         <Route path="/leads" element={<EmBreve eyebrow="Funil" titulo="Leads" texto="Funil de leads com dono e acompanhamento. Chega na Sprint 6." />} />
         <Route path="/catalogo" element={<EmBreve eyebrow="Produtos" titulo="Catálogo" texto="Produtos com o preço da tabela de cada cliente. Chega na Sprint 5." />} />
         {me.usuario.papel !== 'seller' && <Route path="/configuracoes" element={<Config />} />}

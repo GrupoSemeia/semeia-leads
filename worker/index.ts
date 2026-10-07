@@ -4,6 +4,8 @@ import { auth } from './routes/auth'
 import { team } from './routes/team'
 import { rein } from './routes/rein'
 import { sync } from './routes/sync'
+import { accounts } from './routes/accounts'
+import { admin } from './routes/admin'
 import { runScheduled } from './sync/engine'
 
 const app = new Hono<App>()
@@ -23,6 +25,8 @@ priv.use('*', requireLogin)
 priv.route('/equipe', team)
 priv.route('/rein', rein)
 priv.route('/sync', sync)
+priv.route('/accounts', accounts)
+priv.route('/admin', admin)   // plataforma (Grupo Semeia): só ADMINS
 app.route('/api', priv)
 
 app.all('/api/*', c => c.json({ erro: 'Rota não encontrada.' }, 404))

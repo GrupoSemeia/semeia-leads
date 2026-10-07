@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react'
 import { api, PAPEL } from '../api'
 import { PageHead, Carregando, useApi, useToast, copiar } from '../ui'
+import { useMe } from '../me'
+import { brl } from '../api'
 
 export default function Config() {
-  return <><PageHead eyebrow="Empresa" title="Configurações" /><div className="stack"><ConexaoErp /><Sincronizacao /><Equipe /></div></>
+  return <><PageHead eyebrow="Empresa" title="Configurações" /><div className="stack"><PlanoCard /><ConexaoErp /><Sincronizacao /><Equipe /></div></>
 }
 
 function ConexaoErp() {
@@ -47,11 +49,15 @@ function Equipe() {
   const { dados: d, erro, recarregar } = useApi<any>('/equipe')
   const toast = useToast()
   const [link, setLink] = useState('')
+  const erp = useApi<any>('/equipe/vendedores-erp')
   if (!d) return <Carregando erro={erro} />
   async function convidar(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
     const f = new FormData(e.currentTarget)
     try { const r = await api<any>('/equipe/invites', { body: { email: f.get('email'), papel: f.get('papel') } }); setLink(r.link); recarregar(); e.currentTarget.reset() } catch (x: any) { toast(x.message) }
+  }
+  async function vincular(m: any, valor: string) {
+    try { await api(`/equipe/${m.id}`, { method: 'PATCH', body: { papel: m.role, ativo: !!m.active, reinUsuarioId: valor ? Number(valor) : null, whatsapp: m.whatsapp } }); toast('Vínculo salvo. Carteira atualizada.'); recarregar() } catch (x: any) { toast(x.message) }
   }
   async function alternar(m: any) {
     try { await api(`/equipe/${m.id}`, { method: 'PATCH', body: { papel: m.role, ativo: !m.active, reinUsuarioId: m.rein_user_id, whatsapp: m.whatsapp } }); recarregar() } catch (x: any) { toast(x.message) }
@@ -60,8 +66,10 @@ function Equipe() {
     <div><div className="eyebrow">Acesso</div><h3>Equipe</h3></div>
     <table className="tbl"><tbody>
       {d.membros.map((m: any) => <tr key={m.id}><td><strong>{m.name}</strong><div className="muted">{m.email}</div></td><td>{PAPEL[m.role]}</td>
+        <td><select value={m.rein_user_id ?? ''} onChange={e => vincular(m, e.target.value)} aria-label={`Vendedor do ERP de ${m.name}`} style={{ width: 'auto', maxWidth: 200 }}><option value="">Vendedor do ERP…</option>{erp.dados?.itens.map((v: any) => <option key={v.id} value={v.id}>{v.name}</option>)}</select></td>
         <td style={{ textAlign: 'right' }}>{m.role !== 'admin' && <button className="btn sm" onClick={() => alternar(m)}>{m.active ? 'Desativar' : 'Reativar'}</button>}</td></tr>)}
     </tbody></table>
+    <div className="muted">Ligue cada vendedor ao nome dele no ERP: assim os clientes caem na carteira de quem vendeu por último.</div>
     {d.convites.length > 0 && <div className="muted">Convites pendentes: {d.convites.map((c: any) => c.email).join(', ')}</div>}
     <form className="row" onSubmit={convidar}>
       <input name="email" type="email" required placeholder="e-mail da pessoa" style={{ flex: 1, minWidth: 180 }} />
@@ -95,7 +103,7 @@ function Sincronizacao() {
   return <div className="card" style={{ padding: 18, display: 'grid', gap: 12 }}>
     <div><div className="eyebrow">Dados do ERP</div><h3>Sincronização</h3>
       <p className="muted" style={{ margin: '4px 0 0' }}>Copia clientes, produtos e pedidos do ERP para o app. Faça a carga inicial uma vez; depois o app se atualiza sozinho (pedidos a cada 15 min, cadastros de madrugada).</p></div>
-    <div className="kpis">{[['Clientes', c.clientes], ['Produtos', c.produtos], ['Vendedores', c.vendedores], ['Pedidos', c.pedidos]].map(([l, v]) => <div className="kpi" key={l as string}><span>{l}</span><b className="num">{v}</b></div>)}</div>
+    <div className="kpis">{[['Clientes', c.clientes], ['Produtos', c.produtos], ['Vendedores', c.vendedores], ['Pedidos', c.pedidos]].map(([l, v]) => <div className="kpi" key={l as string}><div className="l">{l}</div><div className="v num">{v as number}</div></div>)}</div>
     {c.pedidosSemItens > 0 && <div className="muted">{c.pedidosSemItens} pedido(s) ainda sem os itens — rode “Atualizar pedidos”.</div>}
     {d.jobs.map((j: any) => <div className="spread" key={j.job}>
       <div><strong>{NOME_JOB[j.job]}</strong><div className="muted">Última vez: {QUANDO(j.ultimoOk)}{j.status === 'running' && ' · em andamento'}{j.erro && ` · erro: ${j.erro}`}</div></div>
@@ -103,5 +111,19 @@ function Sincronizacao() {
         <button className="btn sm pri" disabled={!!rodando} onClick={() => rodar(j.job, true)}>{rodando === j.job ? 'Sincronizando…' : 'Rodar agora'}</button></div></div>)}
     {prog && rodando && <div className="note">{prog.etapa} · passo {prog.passo} de {prog.passos}</div>}
     {msg && <div className="note">{msg}</div>}
+  </div>
+}
+
+function PlanoCard() {
+  const { me } = useMe(), p = me.plano
+  const uso = (n: number, lim: number | null) => (lim === null ? `${n} (sem limite)` : `${n} de ${lim}`)
+  const estourou = p.limiteClientes !== null && p.clientes > p.limiteClientes
+  return <div className="card" style={{ padding: 18, display: 'grid', gap: 10 }}>
+    <div className="spread"><div><div className="eyebrow">Seu plano</div><h3>{p.emTeste ? `Teste grátis · tudo liberado (${me.trialDias} dia(s))` : p.nome}</h3></div>
+      <span className="muted">{p.emTeste ? `Depois: plano ${p.contratado}` : `${brl(p.preco)}/mês`}</span></div>
+    <div className="grid2"><div><div className="muted" style={{ fontSize: 12 }}>Vendedores</div><strong>{uso(p.vendedores, p.limiteVendedores)}</strong></div>
+      <div><div className="muted" style={{ fontSize: 12 }}>Clientes na carteira</div><strong>{uso(p.clientes, p.limiteClientes)}</strong></div></div>
+    {estourou && <div className="note">Sua carteira passou do limite do plano. Nada foi apagado, mas considere subir de plano.</div>}
+    <p className="muted" style={{ margin: 0 }}>Vendedor adicional: {brl(p.vendedorExtra)}/mês. Pagando por 1 ano, você ganha 2 meses. Para trocar de plano, fale com o Grupo Semeia Digital.</p>
   </div>
 }

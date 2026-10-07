@@ -454,3 +454,11 @@ a.nav,a.btn,a.kpi,a.pp-btn,.back{text-decoration:none}
 a.btn{display:inline-flex;align-items:center}
 .pp-btn:disabled,.btn:disabled{opacity:.55;cursor:not-allowed}
 .public .pp-body .fl span{font-size:12.5px}
+
+/* Semeia Leads: telas estreitas */
+.scrollx{overflow-x:auto;max-width:100%}
+.content{min-width:0}
+.listx>*{min-width:0;gap:8px;padding:11px 12px}
+.listx .ell{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.listx .t2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:480px){.tbl th,.tbl td{padding:8px 8px}.kpi .v{font-size:26px!important}}

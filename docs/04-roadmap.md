@@ -30,9 +30,10 @@ Marque `[x]` ao concluir. Cada sprint termina com algo demonstrável à AC3.
 - [ ] Mapeamento `User.reinUsuarioId` (tela de usuários)
 
 ## Sprint 3 — Domínio e carteira (semana 4)
-- [ ] `packages/domain`: status, ABC, frequência, score, agenda, recompra, positivação (testes)
-- [ ] `metrics.recompute` + seed de carteira pelo último vendedor
-- [ ] Telas `Carteira` e `Cliente/:id` (ficha, pedidos, top produtos, categorias nunca compradas)
+- [x] `worker/domain/carteira.ts`: status, ABC, frequência, score, agenda, recompra, positivação, parâmetros (17 testes). Parâmetros editáveis ficam em `settings.params` (ainda sem tela)
+- [x] `worker/metrics.ts` (`recomputeAccounts`): roda ao fim de cada sync e ao ligar vendedor↔ERP; seed da carteira pelo vendedor do último pedido (depois só o gestor muda)
+- [x] Telas `Carteira` (busca, filtros, mover em massa) e `Cliente/:id` (ficha, pedidos, mais comprados, categorias nunca compradas). Vendedor só vê a própria carteira
+- [x] Planos do SaaS (Essencial/Profissional/Distribuidor), limite de vendedores no servidor, rota de administração da plataforma (`/api/admin/tenants`). Falta: cobrança (Asaas), tela de admin, limite de clientes só informativo
 
 ## Sprint 4 — Agenda e contato (semana 5)
 - [ ] `GET /agenda` + tela `Hoje`

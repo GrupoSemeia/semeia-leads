@@ -17,3 +17,11 @@ export const primeiroNome = (n: string) => (n || '').split(' ')[0]
 export const iniciais = (n: string) => (n || '?').split(' ').filter(Boolean).map(x => x[0]).slice(0, 2).join('').toUpperCase()
 export const waLink = (tel: string, msg: string) => `https://wa.me/55${digitos(tel)}?text=${encodeURIComponent(msg)}`
 export const PAPEL: Record<string, string> = { admin: 'Administrador', manager: 'Gestor', seller: 'Vendedor' }
+
+export const STATUS_CONTA: Record<string, [string, string]> = { PROSPECT: ['Nunca comprou', ''], ATIVO: ['Ativo', 'p-aprovado'], EM_RISCO: ['Em risco', 'p-enviado'], INATIVO: ['Inativo', 'p-recusado'] }
+const dUTC = (s: string) => new Date(s.replace(' ', 'T') + 'Z')
+export const fData = (s: string | null) => (s ? dUTC(s).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }) : '—')
+export const diasDesde = (s: string | null) => (s ? Math.floor((Date.now() - dUTC(s).getTime()) / 864e5) : null)
+export const fDias = (s: string | null) => { const d = diasDesde(s); return d === null ? 'nunca' : d <= 0 ? 'hoje' : d === 1 ? 'ontem' : `há ${d} dias` }
+export const telWa = (t: string | null) => digitos(t ?? '')
+export const brlInt = (centavos: number) => (Number(centavos || 0) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 })
