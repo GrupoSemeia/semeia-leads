@@ -131,13 +131,18 @@ npx wrangler secret put SECRETS_KEY   # openssl rand -base64 32
 - Pedidos: a lista pode vir sem itens → fila `items_synced=0` buscada por `/pedido/{id}` (2 em paralelo). Registro que some do ERP só ganha `deleted_at` após 2 syncs completos sem aparecer.
 
 ## Onde paramos
-**Todo o código planejado está pronto** (Sprints 0–7 + cobrança Asaas, administração da plataforma, imagens de produto, página de apresentação, recuperação de senha, avisos por e-mail ao gestor), testado só com o modo de teste (dados de exemplo). Migrações 0001–0011 aplicadas no D1 de produção. Push no navegador **não** foi feito (só e-mail).
+**Todo o código planejado está pronto** (Sprints 0–7 + cobrança Asaas, administração da plataforma, imagens de produto, página de apresentação, recuperação de senha, avisos por e-mail, ajuda dentro do app, tema claro/escuro), testado só com o modo de teste (dados de exemplo). Migrações 0001–0011 aplicadas no D1 de produção. Push no navegador **não** foi feito (só e-mail).
+
+**Já no ar:** Worker `semeia-leads` publicado em https://semeia-leads.gruposemeiadigital.workers.dev (conta Cloudflare Grupo Semeia, plano **Workers Paid** — o gratuito limita a 5 crons e já estavam usados). Deploy automático pelo **Workers Builds** a cada push na branch `claude/festive-maxwell-x44qge` (build `npm run build`, deploy `npx wrangler deploy`, token próprio "semeia-leads build token"). Administradores da plataforma (`ADMINS`): `alcyjvneto@gmail.com` e `gruposemeiadigital@gmail.com`.
+**Empresa de demonstração em produção** ("Grupo Semeia Digital (demonstração)", id `4aae3d4b-2055-4d12-8987-87a489ffd735`, plano Distribuidor/ativo, ERP em modo de teste): admin da plataforma (`gruposemeiadigital@gmail.com`), admin da empresa (`admin@exemplo.semeia.test`), gestor (`gestor@exemplo.semeia.test`), vendedores `carlos|mariana|rafael|juliana@exemplo.semeia.test` e 8 leads de exemplo. **Senhas não ficam no repositório** (foram passadas ao Neto na conversa; sem e-mail real, a recuperação de senha não funciona para as contas `@exemplo.semeia.test`). Clientes, produtos e pedidos de exemplo só existem depois da "Carga inicial" em Configurações → Sincronização. Apagar ou trocar essas contas antes de usar a empresa com dados reais.
+**Manual de apresentação para o Augusto:** página privada no claude.ai (https://claude.ai/artifact/7Pv6UNGFcqd8Ct1w3R62ZJ); compartilhar pelo menu Compartilhar. Precisa ser atualizado se planos, preços ou telas mudarem.
 
 **O que falta (depende de pessoas/contas — nenhuma linha de código pendente):**
-1. **Deploy** na Cloudflare (`docs/05-deploy.md`): secrets `SECRETS_KEY`, `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN`; variável `APP_URL`; domínio.
+1. **Secrets e variáveis do Worker** (Settings → Variables and Secrets; `docs/05-deploy.md`): `SECRETS_KEY` (obrigatório para conectar a Rein real; guardar cópia), `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN`, `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL`. Domínio próprio em Domínios & Rotas.
 2. **Webhook na Asaas**: `https://<domínio>/api/asaas/webhook` com os eventos de cobrança e assinatura e o mesmo token.
-3. **E-mail (Resend)**: conta com domínio verificado, secret `RESEND_API_KEY`, variável `EMAIL_FROM`. Sem isso nenhum e-mail sai (senha e avisos).
-4. **Piloto AC3**: antes do fim do teste de 14 dias, `plan='ativo'` via `PATCH /api/admin/tenants/:id`, senão a conta é bloqueada.
+3. **E-mail (Resend)**: conta com domínio verificado. Sem isso nenhum e-mail sai (senha e avisos).
+4. **Piloto AC3**: criar a conta do Augusto e, antes do fim do teste de 14 dias, `plan='ativo'` via `PATCH /api/admin/tenants/:id`, senão a conta é bloqueada. Condições comerciais do piloto: a combinar com o Neto.
 5. **Rein**: enviar as perguntas de `docs/02-api-rein.md` (§6 e 11, 12, 13); obter credenciais reais; ajustar `normalize.ts`/`api.ts` (paginação, datas, formato das listas) com a primeira resposta real.
 6. **Homologar escritas no ERP** (`pessoa_write_enabled`, `pedido_write_enabled` seguem desligadas; pedido tem efeito fiscal).
 7. **Carga inicial (backfill)**, piloto com 1 vendedor e baseline das métricas.
+8. Ideias não pedidas: trocar senha dentro do app, conta de plataforma sem vínculo com empresa (hoje o login exige uma empresa), push no navegador.

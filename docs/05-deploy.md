@@ -47,3 +47,8 @@ Na Asaas (Integrações → Webhooks): URL `https://<domínio>/api/asaas/webhook
 2. `npx wrangler secret put RESEND_API_KEY`
 3. Em `vars` (ou secret): `EMAIL_FROM` (ex.: `Semeia Leads <nao-responda@seudominio.com.br>`) e `APP_URL` (endereço público, sem barra no fim — usado nos links dos e-mails).
 4. Sem essas chaves o envio fica desligado: o "Esqueci a senha" responde normalmente, mas nenhum e-mail sai.
+
+## Como está publicado hoje
+- Worker `semeia-leads` na conta Cloudflare do Grupo Semeia, **plano Workers Paid** (o gratuito permite só 5 cron triggers por conta).
+- Workers Builds ligado ao repositório: cada push na branch `claude/festive-maxwell-x44qge` roda `npm run build` e `npx wrangler deploy`. Se criar a `main`, troque a branch de produção em Settings → Builds.
+- D1 e R2 já criados; as migrações novas precisam ser aplicadas no D1 antes de publicar código que dependa delas.
