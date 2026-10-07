@@ -125,5 +125,13 @@ npx wrangler secret put SECRETS_KEY   # openssl rand -base64 32
 - Pedidos: a lista pode vir sem itens → fila `items_synced=0` buscada por `/pedido/{id}` (2 em paralelo). Registro que some do ERP só ganha `deleted_at` após 2 syncs completos sem aparecer.
 
 ## Onde paramos
-**Sprints 0 a 7 concluídas** (código) com o modo de teste: fundação, cliente Rein tipado, mock, sync, carteira, planos, agenda, contato, pós-venda/NPS, catálogo, pré-pedido, funil de leads e escritas no ERP (travadas). Migrações 0001–0009 aplicadas (0010 e 0011 prontas) no D1 de produção. **Falta só o que depende de pessoas/credenciais:** deploy e `SECRETS_KEY` (`docs/05-deploy.md`), domínio, credenciais Rein e homologação (perguntas de `docs/02-api-rein.md` §6, 11 e 12), piloto com 1 vendedor, baseline. Cobrança (Asaas) pronta (precisa das chaves e do webhook cadastrado). Tela de administração da plataforma pronta. Imagens de produto (R2) prontas. Página de apresentação pronta. Recuperação de senha pronta (precisa do Resend). Avisos por e-mail ao gestor prontos. **Antes de ligar a Rein real:** enviar à Rein as perguntas de `docs/02-api-rein.md` §6 e ajustar `normalize.ts`/`api.ts` (paginação, datas, formato das listas) com a primeira resposta real.
-Pendências de infraestrutura: secret `SECRETS_KEY` e deploy na Cloudflare, domínio, landing page.
+**Todo o código planejado está pronto** (Sprints 0–7 + cobrança Asaas, administração da plataforma, imagens de produto, página de apresentação, recuperação de senha, avisos por e-mail ao gestor), testado só com o modo de teste (dados de exemplo). Migrações 0001–0011 aplicadas no D1 de produção. Push no navegador **não** foi feito (só e-mail).
+
+**O que falta (depende de pessoas/contas — nenhuma linha de código pendente):**
+1. **Deploy** na Cloudflare (`docs/05-deploy.md`): secrets `SECRETS_KEY`, `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN`; variável `APP_URL`; domínio.
+2. **Webhook na Asaas**: `https://<domínio>/api/asaas/webhook` com os eventos de cobrança e assinatura e o mesmo token.
+3. **E-mail (Resend)**: conta com domínio verificado, secret `RESEND_API_KEY`, variável `EMAIL_FROM`. Sem isso nenhum e-mail sai (senha e avisos).
+4. **Piloto AC3**: antes do fim do teste de 14 dias, `plan='ativo'` via `PATCH /api/admin/tenants/:id`, senão a conta é bloqueada.
+5. **Rein**: enviar as perguntas de `docs/02-api-rein.md` (§6 e 11, 12, 13); obter credenciais reais; ajustar `normalize.ts`/`api.ts` (paginação, datas, formato das listas) com a primeira resposta real.
+6. **Homologar escritas no ERP** (`pessoa_write_enabled`, `pedido_write_enabled` seguem desligadas; pedido tem efeito fiscal).
+7. **Carga inicial (backfill)**, piloto com 1 vendedor e baseline das métricas.
