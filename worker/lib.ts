@@ -3,7 +3,8 @@ import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import { nivelDe, limiteVendedores, PLANOS, tierEfetivo } from './plans'
 
 export type Env = { DB: D1Database; IMAGENS?: R2Bucket; ASSETS: Fetcher; APP_NAME: string; ADMINS?: string; SECRETS_KEY?: string
-  ASAAS_URL?: string; ASAAS_API_KEY?: string; ASAAS_WEBHOOK_TOKEN?: string }
+  ASAAS_URL?: string; ASAAS_API_KEY?: string; ASAAS_WEBHOOK_TOKEN?: string
+  RESEND_API_KEY?: string; EMAIL_FROM?: string; EMAIL_PROVIDER?: string; APP_URL?: string }
 export type Role = 'admin' | 'manager' | 'seller'
 export type Session = { userId: string; tenantId: string; role: Role; name: string; email: string; platformAdmin: boolean }
 export type App = { Bindings: Env; Variables: { session: Session } }

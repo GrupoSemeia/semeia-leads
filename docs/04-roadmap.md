@@ -66,7 +66,7 @@ Marque `[x]` ao concluir. Cada sprint termina com algo demonstrável à AC3.
 
 ## Itens que ficaram depois do MVP (feitos em seguida)
 - [x] Cobrança dos planos (Asaas) · [x] Administração da plataforma · [x] Imagens de produto (R2) · [x] Página de apresentação
-- [ ] Recuperação de senha por e-mail · [ ] Aviso por e-mail ao gestor
+- [x] Recuperação de senha por e-mail · [ ] Aviso por e-mail ao gestor
 
 ## Fase 2 (pós-MVP)
 WhatsApp Cloud API + disparos automáticos · agente de IA no WhatsApp (consulta catálogo, monta pré-pedido para aprovação) ·

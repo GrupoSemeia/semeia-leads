@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api'
 import { Icon, Logo } from '../ui'
 
@@ -29,6 +29,7 @@ export default function Entrar({ aoEntrar }: { aoEntrar: () => void }) {
           <div><div className="eyebrow">Acesso da empresa</div><h2>Entrar</h2></div>
           <label className="fl"><span>E-mail</span><input name="email" type="email" required autoComplete="username" /></label>
           <label className="fl"><span>Senha</span><input name="senha" type="password" required autoComplete="current-password" /></label>
+          <Link className="muted" to="/esqueci" style={{ fontSize: 13 }}>Esqueci a senha</Link>
         </> : <>
           <div><div className="eyebrow">14 dias grátis, sem cartão</div><h2>Cadastre sua empresa</h2></div>
           <label className="fl"><span>Nome da empresa</span><input name="empresa" required /></label>

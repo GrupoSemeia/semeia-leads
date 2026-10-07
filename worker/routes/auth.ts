@@ -1,5 +1,7 @@
 import { Hono } from 'hono'
-import { type App, loadTenantPlano, newId, hashPassword, checkPassword, createSession, endSession, readSession, clean, slugify, fail, sha256, requireLogin } from '../lib'
+import { emailRecuperacaoSenha, emailValido } from '../domain/emails'
+import { enviarEmail } from '../email'
+import { type App, loadTenantPlano, newId, hashPassword, checkPassword, createSession, endSession, readSession, clean, slugify, fail, sha256, requireLogin, randomToken, audit } from '../lib'
 
 import { estadoDaConta, MENSAGEM_BLOQUEIO } from '../billing'
 import { PLANOS, VENDEDOR_EXTRA, MESES_PAGOS_NO_ANO, tierEfetivo, nivelDe, limiteVendedores, limiteClientes, emTeste } from '../plans'
@@ -111,5 +113,64 @@ auth.post('/invite/:token', async c => {
     db.prepare("UPDATE invites SET used_at = datetime('now') WHERE id = ?").bind(iv.id),
   ])
   await createSession(c, u.id, iv.tenant_id)
+  return c.json({ ok: true })
+})
+
+/* recuperação de senha: resposta sempre igual (não revela se o e-mail existe); token de 1 h, só o hash fica no banco */
+const VALIDADE_RESET_MIN = 60
+auth.post('/esqueci', async c => {
+  const b = await c.req.json<any>().catch(() => ({}))
+  const email = clean(b.email, 120).toLowerCase()
+  const resposta = { ok: true, mensagem: 'Se este e-mail tiver conta, enviamos um link para criar uma nova senha. Ele vale por 1 hora.' }
+  if (!emailValido(email)) return c.json(resposta)
+  const db = c.env.DB
+  const ip = c.req.header('cf-connecting-ip') ?? 'sem-ip'
+  const ipHash = await sha256(`ip:${ip}`)
+  const lim = await db.prepare("SELECT (SELECT COUNT(*) FROM password_resets WHERE ip_hash = ?1 AND created_at > datetime('now','-1 hour')) AS ip").bind(ipHash).first<{ ip: number }>()
+  if ((lim?.ip ?? 0) >= 10) return c.json(resposta)
+  const u = await db.prepare('SELECT id, name FROM users WHERE email = ?').bind(email).first<any>()
+  if (!u) return c.json(resposta)
+  const n = await db.prepare("SELECT COUNT(*) AS n FROM password_resets WHERE user_id = ? AND created_at > datetime('now','-1 hour')").bind(u.id).first<{ n: number }>()
+  if ((n?.n ?? 0) >= 3) return c.json(resposta)
+  const token = randomToken(32)
+  await db.batch([
+    db.prepare("UPDATE password_resets SET used_at = datetime('now') WHERE user_id = ? AND used_at IS NULL").bind(u.id),
+    db.prepare('INSERT INTO password_resets (token_hash, user_id, expires_at, ip_hash) VALUES (?,?,?,?)')
+      .bind(await sha256(token), u.id, new Date(Date.now() + VALIDADE_RESET_MIN * 60000).toISOString(), ipHash),
+  ])
+  const base = (c.env.APP_URL || new URL(c.req.url).origin).replace(/\/+$/, '')
+  const msg = emailRecuperacaoSenha({ nome: u.name, link: `${base}/redefinir/${token}`, validadeMin: VALIDADE_RESET_MIN })
+  const envio = enviarEmail(c.env, email, msg).then(r => { if (!r.ok) console.warn('reset de senha: e-mail não enviado', r.motivo) })
+  try { c.executionCtx.waitUntil(envio) } catch { await envio }
+  return c.json(resposta)
+})
+
+async function carregarReset(c: any) {
+  const r = await c.env.DB.prepare('SELECT token_hash, user_id FROM password_resets WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?')
+    .bind(await sha256(c.req.param('token')), new Date().toISOString()).first()
+  if (!r) throw fail(404, 'Este link venceu ou já foi usado. Peça um novo em "Esqueci a senha".')
+  return r
+}
+auth.get('/redefinir/:token', async c => {
+  const r = await carregarReset(c)
+  const u = await c.env.DB.prepare('SELECT email FROM users WHERE id = ?').bind(r.user_id).first<any>()
+  return c.json({ email: u?.email ?? '' })
+})
+auth.post('/redefinir/:token', async c => {
+  const r = await carregarReset(c), db = c.env.DB
+  const b = await c.req.json<any>().catch(() => ({}))
+  const pw = String(b.senha ?? '')
+  if (pw.length < 8) throw fail(400, 'A senha precisa ter pelo menos 8 caracteres.')
+  // consumo atômico: só quem marcar o token como usado troca a senha
+  const uso = await db.prepare("UPDATE password_resets SET used_at = datetime('now') WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?")
+    .bind(r.token_hash, new Date().toISOString()).run()
+  if (!uso.meta.changes) throw fail(404, 'Este link venceu ou já foi usado. Peça um novo em "Esqueci a senha".')
+  await db.batch([
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').bind(await hashPassword(pw), r.user_id),
+    db.prepare('DELETE FROM sessions WHERE user_id = ?').bind(r.user_id),
+    db.prepare("UPDATE password_resets SET used_at = datetime('now') WHERE user_id = ? AND used_at IS NULL").bind(r.user_id),
+  ])
+  const m = await db.prepare('SELECT tenant_id FROM members WHERE user_id = ? AND active = 1 ORDER BY created_at LIMIT 1').bind(r.user_id).first<any>()
+  if (m) await audit(db, m.tenant_id, r.user_id, 'senha_redefinida')
   return c.json({ ok: true })
 })

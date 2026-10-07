@@ -7,6 +7,7 @@ import { Icon, Logo, ToastProvider, Carregando } from './ui'
 import { MeCtx, type Me } from './me'
 import Entrar from './pages/Entrar'
 import Convite from './pages/Convite'
+import { Esqueci, Redefinir } from './pages/RecuperarSenha'
 import Config from './pages/Config'
 import EmBreve from './pages/EmBreve'
 import Carteira from './pages/Carteira'
@@ -67,7 +68,7 @@ function App() {
   const carregar = () => api<Me>('/auth/me').then(setMe).catch(() => setMe({ logado: false } as Me))
   useEffect(() => { carregar() }, [])
   const loc = useLocation()
-  if (/^\/(convite|nps|seja-revendedor)\//.test(loc.pathname)) return <Routes><Route path="/convite/:token" element={<Convite aoEntrar={carregar} />} /><Route path="/nps/:token" element={<Nps />} /><Route path="/seja-revendedor/:slug" element={<SejaRevendedor />} /></Routes>
+  if (/^\/(convite|nps|seja-revendedor|redefinir)\//.test(loc.pathname) || loc.pathname === '/esqueci') return <Routes><Route path="/esqueci" element={<Esqueci />} /><Route path="/redefinir/:token" element={<Redefinir />} /><Route path="/convite/:token" element={<Convite aoEntrar={carregar} />} /><Route path="/nps/:token" element={<Nps />} /><Route path="/seja-revendedor/:slug" element={<SejaRevendedor />} /></Routes>
   if (!me) return <Carregando />
   if (!me.logado) return <Routes><Route path="/entrar" element={<Entrar aoEntrar={carregar} />} /><Route path="*" element={<Navigate to="/entrar" replace />} /></Routes>
   if (me.plano.bloqueado) return <MeCtx.Provider value={{ me, recarregar: carregar }}>

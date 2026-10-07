@@ -41,3 +41,9 @@ Na Asaas (Integrações → Webhooks): URL `https://<domínio>/api/asaas/webhook
 ## 4. O que ainda é manual / pendente
 - Cobrança dos planos (Asaas, como no AroCerto) e tela de administração da plataforma (hoje só `PATCH /api/admin/tenants/:id`).
 - Imagens de produto (R2), landing page, recuperação de senha por e-mail, e-mail/push de alerta ao gestor.
+
+## E-mail (recuperação de senha e avisos)
+1. Crie conta no Resend (resend.com) e verifique o domínio de envio.
+2. `npx wrangler secret put RESEND_API_KEY`
+3. Em `vars` (ou secret): `EMAIL_FROM` (ex.: `Semeia Leads <nao-responda@seudominio.com.br>`) e `APP_URL` (endereço público, sem barra no fim — usado nos links dos e-mails).
+4. Sem essas chaves o envio fica desligado: o "Esqueci a senha" responde normalmente, mas nenhum e-mail sai.

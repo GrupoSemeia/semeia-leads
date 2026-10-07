@@ -443,6 +443,7 @@ input[type=date]{color-scheme:dark}
 #root{min-height:100%}
 .loading{display:grid;place-items:center;min-height:60vh;color:var(--muted)}
 .err{color:var(--bad);font-size:13px}
+.ok{color:var(--ok);background:var(--ok-soft);border-radius:8px;padding:10px 12px;font-size:14px}
 .fieldrow{display:flex;gap:8px;align-items:center}
 .money{display:flex;align-items:center;gap:6px}.money span{color:var(--muted);font-size:13px}
 .linklike{background:none;border:0;color:var(--accent);cursor:pointer;padding:0;font:inherit}
