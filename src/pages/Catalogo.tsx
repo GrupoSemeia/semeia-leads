@@ -38,7 +38,9 @@ export default function Catalogo() {
       {!d ? <Carregando erro={erro} /> : d.itens.length === 0 ? <div className="card" style={{ padding: 20 }}><p className="muted" style={{ margin: 0 }}>Nenhum produto encontrado. Se o catálogo está vazio, faça a carga inicial do ERP em Configurações.</p></div>
         : <div className="card" style={{ padding: 0 }}><div className="listx">
           {d.itens.map((p: any) => <div key={p.id} style={{ cursor: 'default', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-            <div className="grow" style={{ minWidth: 180 }}><div className="t1">{p.name}</div><div className="t2" style={{ whiteSpace: 'normal' }}>{[p.code, p.marca].filter(Boolean).join(' · ')}</div></div>
+            <div style={{ width: 48, height: 48, borderRadius: 8, background: 'var(--surface-2)', overflow: 'hidden', flex: 'none', display: 'grid', placeItems: 'center' }}>
+              {p.imagem ? <img src={`/api/imagens/${p.id}?v=${p.imagem}`} alt="" loading="lazy" width={48} height={48} style={{ objectFit: 'cover', width: 48, height: 48 }} /> : <Icon n="box" s={20} />}</div>
+            <div className="grow" style={{ minWidth: 150 }}><div className="t1">{p.name}</div><div className="t2" style={{ whiteSpace: 'normal' }}>{[p.code, p.marca].filter(Boolean).join(' · ')}</div></div>
             <div style={{ textAlign: 'right', minWidth: 96 }}><strong className="num">{!comPreco ? '—' : p.preco === null ? 'sem preço' : brl(p.preco)}</strong>{comPreco && <div className="muted" style={{ fontSize: 11 }}>{d.cliente?.tabela}</div>}</div>
             {comPreco && p.preco !== null && <div className="row" style={{ flexWrap: 'nowrap' }}>
               <input type="number" min={1} max={99999} value={qtd[p.id] ?? 1} onChange={e => setQtd({ ...qtd, [p.id]: Number(e.target.value) })} aria-label={`Quantidade de ${p.name}`} style={{ width: 64 }} />

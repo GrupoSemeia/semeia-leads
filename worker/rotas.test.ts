@@ -15,7 +15,7 @@ const ESPERADAS = [
   'GET /api/accounts/erp-pendencias', 'POST /api/accounts/erp-pendencias/processar', 'POST /api/accounts/erp-pendencias/:id/resolver',
   'POST /api/accounts/:id{[0-9]+}/interactions', 'POST /api/accounts/:id{[0-9]+}/whatsapp-click', 'GET /api/accounts/:id{[0-9]+}/mensagem',
   'GET /api/agenda', 'GET /api/templates', 'PUT /api/templates/:key',
-  'GET /api/catalogo', 'GET /api/catalogo/filtros', 'GET /api/pre-pedidos', 'POST /api/pre-pedidos', 'GET /api/pre-pedidos/:id', 'PUT /api/pre-pedidos/:id', 'DELETE /api/pre-pedidos/:id', 'POST /api/pre-pedidos/:id/enviar', 'POST /api/pre-pedidos/:id/resolver',
+  'GET /api/catalogo', 'GET /api/catalogo/filtros', 'GET /api/imagens/:produtoId{[0-9]+}', 'GET /api/imagens/:produtoId{[0-9]+}/:pos{[0-2]}', 'GET /api/pre-pedidos', 'POST /api/pre-pedidos', 'GET /api/pre-pedidos/:id', 'PUT /api/pre-pedidos/:id', 'DELETE /api/pre-pedidos/:id', 'POST /api/pre-pedidos/:id/enviar', 'POST /api/pre-pedidos/:id/resolver',
   'GET /api/leads', 'POST /api/leads', 'GET /api/leads/:id', 'PATCH /api/leads/:id', 'POST /api/leads/:id/push-erp', 'POST /api/leads/:id/erp-resolver',
   'GET /api/assinatura', 'POST /api/assinatura', 'POST /api/assinatura/cancelar', 'POST /api/assinatura/atualizar', 'POST /api/asaas/webhook',
   'GET /api/painel', 'GET /api/painel/comparativo', 'GET /api/parametros', 'PUT /api/parametros', 'GET /api/admin/tenants', 'PATCH /api/admin/tenants/:id',

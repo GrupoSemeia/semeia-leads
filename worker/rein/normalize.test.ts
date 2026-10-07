@@ -44,4 +44,9 @@ describe('nProduto', () => {
     expect(p.precos).toEqual([{ tabelaId: 1, price: 19990, cost: 12000, margin: 40 }])
     expect(JSON.stringify(p.raw)).not.toContain('AAAA'); expect(JSON.stringify(p.raw)).not.toContain('UltimoCusto')
   })
+  it('extrai as fotos (principal primeiro, ordem do ERP) e ignora entrada sem binário', () => {
+    const p = nProduto({ Id: 2, Nome: 'x', ProdutoGrade: [{ Principal: false, ProdutoImagem: [{ OrdemExibicao: 1, BinarioArquivo: 'OUTRA' }] },
+      { Principal: true, ProdutoImagem: [{ OrdemExibicao: 2, BinarioArquivo: 'SEGUNDA' }, { OrdemExibicao: 1, BinarioArquivo: 'PRIMEIRA' }, { OrdemExibicao: 3, NomeArquivo: 'sem-binario.jpg' }] }] })
+    expect(p.imagens.map(i => i.base64)).toEqual(['SEGUNDA', 'PRIMEIRA', 'OUTRA']); expect(nProduto({ Id: 3, Nome: 'y' }).imagens).toEqual([])
+  })
 })

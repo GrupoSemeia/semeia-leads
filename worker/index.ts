@@ -10,6 +10,7 @@ import { agenda, templates } from './routes/agenda'
 import { publico } from './routes/publico'
 import { catalogo } from './routes/catalogo'
 import { prepedidos } from './routes/prepedidos'
+import { imagens } from './routes/imagens'
 import { leads } from './routes/leads'
 import { painel } from './routes/painel'
 import { parametros } from './routes/parametros'
@@ -42,6 +43,8 @@ priv.route('/agenda', agenda)
 priv.route('/templates', templates)
 // Profissional (nível 2) ou acima; no teste grátis tudo vale
 priv.use('/catalogo/*', requireNivel(2)); priv.use('/catalogo', requireNivel(2))
+priv.use('/imagens/*', requireNivel(2))
+priv.route('/imagens', imagens)
 priv.use('/pre-pedidos/*', requireNivel(2)); priv.use('/pre-pedidos', requireNivel(2))
 priv.use('/leads/*', requireNivel(2)); priv.use('/leads', requireNivel(2))
 priv.route('/leads', leads)

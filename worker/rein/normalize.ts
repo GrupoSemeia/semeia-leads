@@ -58,7 +58,8 @@ export type TabelaPreco = { id: number; name: string }
 export type Categoria = { id: number; name: string; parentId: number | null }
 export type Marca = { id: number; name: string }
 export type Preco = { tabelaId: number; price: number; cost: number | null; margin: number | null }
-export type Produto = { id: number; name: string; code: string | null; sku: string | null; brandId: number | null; categoryIds: number[]; active: boolean; isService: boolean; modifiedAt: string | null; precos: Preco[]; raw: Obj }
+export type ImagemProduto = { ordem: number; base64: string }
+export type Produto = { id: number; imagens: ImagemProduto[]; name: string; code: string | null; sku: string | null; brandId: number | null; categoryIds: number[]; active: boolean; isService: boolean; modifiedAt: string | null; precos: Preco[]; raw: Obj }
 export type Pessoa = { id: number; name: string; legalName: string | null; cnpj: string | null; cnae: string | null; whatsapp: string | null; phone: string | null; email: string | null
   city: string | null; uf: string | null; priceTableId: number | null; creditLimit: number | null; channelId: number | null; registeredAt: string | null; modifiedAt: string | null; raw: Obj }
 export type PedidoItem = { produtoId: number | null; qty: number; unitPrice: number }
@@ -79,10 +80,13 @@ export function nProduto(o: Obj): Produto {
     const cur = byTable.get(tabelaId)
     if (!cur || g.Principal) byTable.set(tabelaId, { tabelaId, price, cost: pick(m, 'UltimoCustoEmReal', 'Custo') === undefined ? null : cents(pick(m, 'UltimoCustoEmReal', 'Custo')), margin: pick(m, 'Margem') === undefined ? null : Number(m.Margem) })
   }
+  // fotos: grade principal primeiro; o binário vai para o R2 (sync/imagens.ts), nunca para o `raw`
+  const imagens: ImagemProduto[] = [...grades].sort((a, b) => Number(!!b.Principal) - Number(!!a.Principal)).flatMap(g => (Array.isArray(g.ProdutoImagem) ? g.ProdutoImagem : []) as Obj[])
+    .map((im, i) => ({ ordem: int(pick(im, 'OrdemExibicao')) ?? i, base64: typeof im.BinarioArquivo === 'string' ? im.BinarioArquivo : '' })).filter(im => im.base64)
   // o JSON bruto guardado não leva imagens (binário enorme) nem margens (ficam só em rein_precos)
   const raw: Obj = { ...o, ProdutoGrade: grades.map(g => { const { ProdutoImagem, ProdutoMargem, ...rest } = g; return rest }) }
   return {
-    id: idOf(o), name: str(pick(o, 'Nome', 'Name')) ?? '', code: str(pick(o, 'CodigoProduto', 'Codigo')), sku: str(pick(o, 'SkuGeral', 'Sku')) ?? str(grades[0]?.Sku),
+    id: idOf(o), imagens, name: str(pick(o, 'Nome', 'Name')) ?? '', code: str(pick(o, 'CodigoProduto', 'Codigo')), sku: str(pick(o, 'SkuGeral', 'Sku')) ?? str(grades[0]?.Sku),
     brandId: int(pick(o, 'ProdutoMarcaId', 'MarcaId')),
     categoryIds: (Array.isArray(o.ProdutoCategoria) ? o.ProdutoCategoria : []).map((c: Obj) => int(c.CategoriaId)).filter((x: number | null): x is number => x !== null),
     active: o.Ativo === undefined ? true : bool(o.Ativo), isService: bool(o.Servico), modifiedAt: erpDateToUtc(pick(o, 'DataUltimaModificacao')), precos: [...byTable.values()], raw,

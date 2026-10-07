@@ -25,7 +25,7 @@ Marque `[x]` ao concluir. Cada sprint termina com algo demonstrável à AC3.
 ## Sprint 2 — Sync (semana 3)
 - [x] `sync_runs` + `sync_state` (cursor retomável, trava por empresa); Cron Trigger a cada 15 min no lugar do pg-boss
 - [x] `backfill` (cadastros + 24 meses de pedidos + itens), `cadastros`, `pedidos` (janela móvel de 3 dias) — `worker/sync/`. Sync automático só roda para empresas com ERP real e depois da carga inicial
-- [ ] Extração de imagens de produto para R2 (hoje a imagem é descartada do `raw`; R2 ainda não criado)
+- [x] Extração de imagens de produto para R2 (bucket `semeia-leads-imagens`, miniatura no catálogo)
 - [x] Painel "Sincronização" em Configurações (contagens, botões, progresso, último erro). Falta tela de logs detalhada e visão de plataforma
 - [ ] Mapeamento `User.reinUsuarioId` (tela de usuários)
 

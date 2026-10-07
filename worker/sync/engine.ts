@@ -10,6 +10,7 @@ import { loadReinCreds } from '../routes/rein'
 import { recomputeAccounts } from '../metrics'
 import { generateTasks } from '../tasks'
 import { convertLeads } from '../leads'
+import { salvarImagensProdutos } from './imagens'
 import { processarVendedorErp } from '../carteira-erp'
 import { reinApiFor, type ReinApi } from '../rein/api'
 import type { Pedido } from '../rein/normalize'
@@ -120,6 +121,10 @@ async function runPage(env: Env, api: ReinApi, tenant: string, task: Task, cur: 
   if (task.kind === 'resource') {
     await saveResource(db, tenant, task.name, page.items, cur.startedAt)
     cur.stats[task.name] = (cur.stats[task.name] ?? 0) + page.items.length
+    if (task.name === 'produtos') {
+      const im = await salvarImagensProdutos(env, tenant, page.items as any)
+      cur.stats.imagens = (cur.stats.imagens ?? 0) + im.gravadas; if (im.invalidas) cur.stats.imagensIgnoradas = (cur.stats.imagensIgnoradas ?? 0) + im.invalidas; if (im.adiadas) cur.stats.imagensAdiadas = (cur.stats.imagensAdiadas ?? 0) + im.adiadas
+    }
   } else {
     const itens = await savePedidos(db, tenant, page.items as Pedido[], cur.startedAt)
     cur.stats.pedidos = (cur.stats.pedidos ?? 0) + page.items.length

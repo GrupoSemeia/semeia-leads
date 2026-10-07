@@ -2,7 +2,7 @@ import type { Context, MiddlewareHandler } from 'hono'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
 import { nivelDe, limiteVendedores, PLANOS, tierEfetivo } from './plans'
 
-export type Env = { DB: D1Database; ASSETS: Fetcher; APP_NAME: string; ADMINS?: string; SECRETS_KEY?: string
+export type Env = { DB: D1Database; IMAGENS?: R2Bucket; ASSETS: Fetcher; APP_NAME: string; ADMINS?: string; SECRETS_KEY?: string
   ASAAS_URL?: string; ASAAS_API_KEY?: string; ASAAS_WEBHOOK_TOKEN?: string }
 export type Role = 'admin' | 'manager' | 'seller'
 export type Session = { userId: string; tenantId: string; role: Role; name: string; email: string; platformAdmin: boolean }

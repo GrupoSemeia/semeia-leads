@@ -18,6 +18,8 @@ const pad = (n: number) => String(n).padStart(2, '0')
 const iso = (d: Date) => `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`
 
 const CIDADES: [string, string][] = [['Curitiba', 'PR'], ['Itajaí', 'SC'], ['Joinville', 'SC'], ['Londrina', 'PR'], ['Maringá', 'PR'], ['Florianópolis', 'SC'], ['Blumenau', 'SC'], ['Ponta Grossa', 'PR']]
+const PNGS = ['iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNg+PQfAALnAfLfd0HlAAAAAElFTkSuQmCC', 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGNY/F8IAAP9AbXUHg2SAAAAAElFTkSuQmCC', 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4f50BAASvAdfA0BA+AAAAAElFTkSuQmCC']
+const SVG_PERIGOSO = btoa('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>')   // produto 5: foto que NÃO pode entrar
 const CATEGORIAS = ['Notebooks', 'Periféricos', 'Armazenamento', 'Redes', 'Componentes', 'Cabos e adaptadores']
 const MARCAS = ['Kingston', 'Logitech', 'TP-Link', 'Intel', 'Multilaser', 'Seagate']
 
@@ -33,7 +35,8 @@ function build() {
     const base = 2000 + Math.floor(r() * 400000) / 100
     return { Id: 100 + i, Nome: `${CATEGORIAS[i % 6]} ${MARCAS[i % 6]} modelo ${i + 1}`, CodigoProduto: `P${1000 + i}`, SkuGeral: `SKU-${1000 + i}`, ProdutoMarcaId: (i % 6) + 1,
       ProdutoCategoria: [{ CategoriaId: (i % 6) + 1 }], Ativo: true, Servico: false, DataUltimaModificacao: '2026-09-01T10:00:00',
-      ProdutoGrade: [{ Sku: `SKU-${1000 + i}`, Principal: true, Ativo: true, ProdutoImagem: [{ NomeArquivo: 'x.jpg', BinarioArquivo: 'AAAA' }],
+      ProdutoGrade: [{ Sku: `SKU-${1000 + i}`, Principal: true, Ativo: true, ProdutoImagem: i === 6 ? [] : i === 5 ? [{ OrdemExibicao: 1, NomeArquivo: 'x.svg', TipoArquivo: 'image/svg+xml', BinarioArquivo: SVG_PERIGOSO }]
+          : [{ OrdemExibicao: 1, NomeArquivo: 'frente.png', TipoArquivo: 'image/png', BinarioArquivo: PNGS[i % 3] }, ...(i % 4 === 0 ? [{ OrdemExibicao: 2, NomeArquivo: 'lado.png', TipoArquivo: 'image/png', BinarioArquivo: PNGS[(i + 1) % 3] }] : [])],
         ProdutoMargem: [{ TabelaPrecoId: 1, PrecoComDesconto: +(base * 1.25).toFixed(2), UltimoCustoEmReal: +base.toFixed(2), Margem: 20 },
           { TabelaPrecoId: 2, PrecoComDesconto: +(base * 1.15).toFixed(2), UltimoCustoEmReal: +base.toFixed(2), Margem: 13 }] }] }
   })

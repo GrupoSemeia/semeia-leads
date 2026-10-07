@@ -176,4 +176,5 @@ Interpretação (⚠️ VALIDAR): `CodOrigem` = empresa emitente (matriz/filial)
 9. Valores válidos de `CodNatureza`, `UsoMercadoria`, `IndicadorPresenca`, `CodMeioPagamento` para venda B2B da AC3; existe ambiente de homologação?
 10. Podemos ter uma base de **teste/homologação** (`Database`) separada da produção?
 11. **Vendedor da carteira:** qual campo da pessoa guarda o vendedor responsável pelo cliente (`UsuarioTecnicoId`? outro?), que tipo de valor ele aceita (id do usuário) e se o `GET /pessoa/{id}` devolve esse campo. O app lê e grava esse campo para manter a carteira igual ao ERP.
+13. **Imagens:** o `GET /produto` (lista) traz `BinarioArquivo` de todas as fotos em base64. Existe listagem sem imagem ou endpoint só de imagem por produto? Isso reduz muito o tamanho da resposta.
 12. `POST /pessoa/{id}` aceita receber o objeto devolvido pelo `GET` com um campo trocado, ou precisa só dos campos alterados? Há campos somente-leitura que o POST rejeita?

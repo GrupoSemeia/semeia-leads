@@ -16,6 +16,8 @@
   ],
   // Domínio próprio (decidir com o Neto; a zona precisa estar na conta Cloudflare). Exemplo:
   // "routes": [{ "pattern": "leads.seudominio.com.br", "custom_domain": true }],
+  // Fotos de produto (vêm em base64 do ERP; o índice fica no D1)
+  "r2_buckets": [{ "binding": "IMAGENS", "bucket_name": "semeia-leads-imagens" }],
   // ADMINS: e-mails dos administradores da plataforma (veem todas as empresas), separados por vírgula
   "vars": { "APP_NAME": "Semeia Leads", "ADMINS": "alcyjvneto@gmail.com", "ASAAS_URL": "https://api.asaas.com/v3" },
   // Sync com o ERP: a cada 15 min (pedidos recentes; cadastros às 05h UTC = 02h Brasília; continua cargas pela metade)

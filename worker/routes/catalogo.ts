@@ -41,9 +41,10 @@ catalogo.get('/', async c => {
   const page = Math.max(0, Math.floor(Number(q.page) || 0)), tabela = cli?.tabelaId ?? -1
   const from = `FROM rein_produtos p LEFT JOIN rein_marcas m ON m.tenant_id = p.tenant_id AND m.rein_id = p.brand_id
                 LEFT JOIN rein_precos pr ON pr.tenant_id = p.tenant_id AND pr.produto_rein_id = p.rein_id AND pr.tabela_rein_id = ?
+                LEFT JOIN product_images im ON im.tenant_id = p.tenant_id AND im.produto_rein_id = p.rein_id AND im.pos = 0
                 WHERE ${where.join(' AND ')}`
   const [rows, total] = await Promise.all([
-    db.prepare(`SELECT p.rein_id AS id, p.name, p.code, p.sku, m.name AS marca, p.category_ids AS categorias, pr.price AS preco ${from} ORDER BY p.name LIMIT ${PAGE} OFFSET ?`).bind(tabela, t, ...args, page * PAGE).all<any>(),
+    db.prepare(`SELECT p.rein_id AS id, p.name, p.code, p.sku, m.name AS marca, p.category_ids AS categorias, pr.price AS preco, substr(im.hash, 1, 12) AS imagem ${from} ORDER BY p.name LIMIT ${PAGE} OFFSET ?`).bind(tabela, t, ...args, page * PAGE).all<any>(),
     db.prepare(`SELECT COUNT(*) AS n ${from}`).bind(tabela, t, ...args).first<{ n: number }>(),
   ])
   return c.json({
