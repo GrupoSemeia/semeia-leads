@@ -36,3 +36,7 @@ export const ROTULO_ETAPA: Record<string, string> = { NOVO: 'Novo', CONTATADO: '
 export const ORIGEM_LEAD: Record<string, string> = { site: 'Site', manual: 'Cadastro manual', lista: 'Lista', indicacao: 'Indicação' }
 export const fCnpj = (c: string) => (c && c.length === 14 ? c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : c)
 export const mascaraCnpj = (v: string) => digitos(v).slice(0, 14).replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2')
+
+export const pct = (v: number) => `${Math.round(v * 100)}%`
+export const sinal = (v: number | null) => (v === null ? '—' : `${v > 0 ? '+' : ''}${String(v).replace('.', ',')}%`)
+export const brlCompacto = (centavos: number) => (Number(centavos || 0) / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', notation: 'compact', maximumFractionDigits: 1 })

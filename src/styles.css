@@ -463,3 +463,7 @@ a.btn{display:inline-flex;align-items:center}
 .listx .t2{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media(max-width:480px){.tbl th,.tbl td{padding:8px 8px}.kpi .v{font-size:26px!important}}
 .toast{bottom:84px}
+
+/* painel: o que só cabe em tela larga */
+@media(max-width:600px){.so-desktop{display:none}.tbl.compacta{font-size:13px}.tbl.compacta th,.tbl.compacta td{padding:8px 5px}}
+.so-mobile{display:none}@media(max-width:600px){.so-mobile{display:inline}}

@@ -14,6 +14,8 @@
   "d1_databases": [
     { "binding": "DB", "database_name": "semeia-leads", "database_id": "41fa0c8d-488a-47ff-a20f-05bbb66ef05f", "migrations_dir": "migrations" }
   ],
+  // Domínio próprio (decidir com o Neto; a zona precisa estar na conta Cloudflare). Exemplo:
+  // "routes": [{ "pattern": "leads.seudominio.com.br", "custom_domain": true }],
   // ADMINS: e-mails dos administradores da plataforma (veem todas as empresas), separados por vírgula
   "vars": { "APP_NAME": "Semeia Leads", "ADMINS": "alcyjvneto@gmail.com" },
   // Sync com o ERP: a cada 15 min (pedidos recentes; cadastros às 05h UTC = 02h Brasília; continua cargas pela metade)

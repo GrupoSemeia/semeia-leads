@@ -8,6 +8,7 @@
     "dev": "vite build && wrangler dev",
     "dev:web": "vite",
     "dev:api": "wrangler dev",
+    "backup": "./scripts/backup-d1.sh",
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "deploy": "npm run build && wrangler deploy",
     "db:local": "wrangler d1 migrations apply semeia-leads --local",

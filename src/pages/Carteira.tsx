@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, brlInt, fDias, STATUS_CONTA, waLink, telWa } from '../api'
-import { PageHead, Carregando, Icon, useApi, useToast } from '../ui'
+import { PageHead, Carregando, Icon, Modal, useApi, useToast } from '../ui'
 import { useMe } from '../me'
 
 const STATUS = ['ATIVO', 'EM_RISCO', 'INATIVO', 'PROSPECT']
@@ -16,7 +16,7 @@ export default function Carteira() {
   const qs = new URLSearchParams({ ...(q && { q }), ...(status && { status }), ...(curva && { curva }), ...(dono && { dono }), page: String(pagina) }).toString()
   const { dados: d, erro, recarregar } = useApi<any>(`/accounts?${qs}`)
   const nav = useNavigate(), toast = useToast()
-  const [sel, setSel] = useState<number[]>([]), [para, setPara] = useState('')
+  const [sel, setSel] = useState<number[]>([]), [para, setPara] = useState(''), [massa, setMassa] = useState(false)
   const equipe = useApi<any>(gestor ? '/equipe' : null)
   const pend = useApi<any>(gestor ? '/accounts/erp-pendencias' : null)
   const total = d ? STATUS.reduce((s, k) => s + (d.porStatus[k] ?? 0), 0) : 0
@@ -24,7 +24,7 @@ export default function Carteira() {
     try { const r = await api<any>('/accounts/reassign', { body: { ids: sel, para: para === 'sem' ? null : para } }); toast(`${r.movidos} cliente(s) movido(s). A troca entrou na fila de atualização do ERP.`); setSel([]); recarregar() } catch (x: any) { toast(x.message) }
   }
   return <>
-    <PageHead eyebrow={gestor ? 'Todos os vendedores' : 'Minha carteira'} title="Carteira" />
+    <PageHead eyebrow={gestor ? 'Todos os vendedores' : 'Minha carteira'} title="Carteira">{admin && me.plano.nivel >= 3 && <button className="btn" onClick={() => setMassa(true)}>Redistribuir por filtro</button>}</PageHead>
     <div className="stack">
       {gestor && pend.dados && (pend.dados.pendentes > 0 || pend.dados.erros > 0) && <div className="note">{pend.dados.pendentes + pend.dados.erros} troca(s) de vendedor ainda não chegaram ao ERP. <Link to="/configuracoes">Ver em Configurações</Link></div>}
       <div className="row"><div style={{ position: 'relative', flex: 1, minWidth: 220 }}>
@@ -56,5 +56,34 @@ export default function Carteira() {
       {d && d.total > d.tamanho && <div className="spread"><span className="muted">{d.pagina * d.tamanho + 1}–{Math.min(d.total, (d.pagina + 1) * d.tamanho)} de {d.total}</span>
         <div className="row"><button className="btn sm" disabled={pagina === 0} onClick={() => setPagina(pagina - 1)}>Anterior</button><button className="btn sm" disabled={(pagina + 1) * d.tamanho >= d.total} onClick={() => setPagina(pagina + 1)}>Próxima</button></div></div>}
     </div>
+    {massa && <Redistribuir equipe={equipe.dados?.membros ?? []} aoFechar={() => setMassa(false)} aoMudar={recarregar} />}
   </>
+}
+
+function Redistribuir({ equipe, aoFechar, aoMudar }: { equipe: any[]; aoFechar: () => void; aoMudar: () => void }) {
+  const toast = useToast()
+  const [f, setF] = useState({ de: '', curva: '', status: '', para: '' }), [previa, setPrevia] = useState<any>(null), [msg, setMsg] = useState(''), [ocupado, setOcupado] = useState(false)
+  const ativos = equipe.filter(m => m.active)
+  const corpo = (confirmar: boolean) => ({ de: f.de, curva: f.curva || undefined, status: f.status || undefined, para: f.para === 'sem' ? null : f.para, confirmar })
+  const rodar = async (confirmar: boolean) => {
+    setOcupado(true); setMsg('')
+    try {
+      const r = await api<any>('/accounts/reassign-filtro', { body: corpo(confirmar) })
+      if (confirmar) { toast(`${r.movidos} cliente(s) movido(s). As trocas entraram na fila de atualização do ERP.`); aoMudar(); aoFechar() } else setPrevia(r)
+    } catch (x: any) { setMsg(x.message) } finally { setOcupado(false) }
+  }
+  const mudar = (k: string, v: string) => { setF({ ...f, [k]: v }); setPrevia(null) }
+  return <Modal titulo="Redistribuir por filtro" sub="Só o administrador" onClose={aoFechar}>
+    <div style={{ display: 'grid', gap: 12 }}>
+      <label className="fl"><span>Clientes de</span><select value={f.de} onChange={e => mudar('de', e.target.value)}><option value="">Escolher…</option><option value="sem">Sem dono</option>{ativos.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+      <div className="grid2"><label className="fl"><span>Curva</span><select value={f.curva} onChange={e => mudar('curva', e.target.value)}><option value="">Todas</option><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="sem">Sem curva</option></select></label>
+        <label className="fl"><span>Status</span><select value={f.status} onChange={e => mudar('status', e.target.value)}><option value="">Todos</option>{Object.entries(STATUS_CONTA).map(([k, [n]]) => <option key={k} value={k}>{n}</option>)}</select></label></div>
+      <label className="fl"><span>Passar para</span><select value={f.para} onChange={e => mudar('para', e.target.value)}><option value="">Escolher…</option>{ativos.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>
+      {previa && previa.total === 0 && <div className="note">Nenhum cliente com esse filtro.</div>}
+      {previa && previa.total > 0 && <div className="note"><strong>{previa.total} cliente(s)</strong> serão movidos{previa.amostra.length ? `: ${previa.amostra.join(', ')}${previa.total > previa.amostra.length ? '…' : ''}` : '.'}<br />Cada troca fica no histórico e entra na fila de atualização do ERP.</div>}
+      {msg && <div className="err">{msg}</div>}
+      <div className="row"><button className="btn" disabled={ocupado || !f.de || !f.para} onClick={() => rodar(false)}>Ver quantos</button>
+        <button className="btn pri" disabled={ocupado || !previa || previa.total === 0} onClick={() => rodar(true)}>Confirmar e mover</button></div>
+    </div>
+  </Modal>
 }

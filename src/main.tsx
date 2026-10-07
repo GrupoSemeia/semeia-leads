@@ -13,6 +13,7 @@ import Carteira from './pages/Carteira'
 import Cliente from './pages/Cliente'
 import Hoje from './pages/Hoje'
 import Leads from './pages/Leads'
+import Painel from './pages/Painel'
 import SejaRevendedor from './pages/SejaRevendedor'
 import Catalogo from './pages/Catalogo'
 import { PrePedidos, PrePedido } from './pages/PrePedidos'
@@ -32,7 +33,7 @@ function Shell({ me, recarregar, children }: { me: Me; recarregar: () => void; c
     <aside className="side">
       <div className="brand"><Logo /><b>Semeia <i>Leads</i></b></div>
       {itens.map(([to, l, ic]) => link(to, l, ic))}
-      {gestor && <><div className="navlabel">Gestão</div>{link('/configuracoes', 'Configurações', 'gear')}</>}
+      {gestor && <><div className="navlabel">Gestão</div>{link('/painel', 'Painel', 'kanban')}{link('/configuracoes', 'Configurações', 'gear')}</>}
       <div className="foot">Um produto <b style={{ color: '#B0C4DE' }}>Grupo Semeia Digital</b></div>
     </aside>
     <div className="scrim" onClick={() => setMenu(false)} />
@@ -75,6 +76,7 @@ function App() {
         <Route path="/pre-pedidos" element={<PrePedidos />} />
         <Route path="/pre-pedidos/:id" element={<PrePedido />} />
         {me.usuario.papel !== 'seller' && <Route path="/configuracoes" element={<Config />} />}
+        {me.usuario.papel !== 'seller' && <Route path="/painel" element={<Painel />} />}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Shell>
@@ -82,3 +84,6 @@ function App() {
 }
 
 createRoot(document.getElementById('root')!).render(<StrictMode><BrowserRouter><ToastProvider><App /></ToastProvider></BrowserRouter></StrictMode>)
+
+// Deixa o app instalável no celular (o service worker não guarda dados em cache)
+if ('serviceWorker' in navigator && location.protocol === 'https:') addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}) })

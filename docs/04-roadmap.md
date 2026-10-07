@@ -8,10 +8,10 @@ Marque `[x]` ao concluir. Cada sprint termina com algo demonstrável à AC3.
 - [x] Projeto único (Worker Hono + SPA React/Vite), TS estrito, vitest (`worker/rein/`, depois `worker/domain/`)
 - [x] D1 `semeia-leads` + migração 0001 (tenants, users, members, sessions, invites, tenant_rein, settings, sync_runs, audit_log); tabelas do espelho/domínio entram nas migrações das sprints 2–3
 - [x] Auth (cadastro de empresa com 14 dias, login, convite da equipe, troca de empresa), papéis admin/manager/seller, shell responsivo
-- [ ] PWA instalável (manifest + service worker) e bottom bar do vendedor
+- [x] PWA instalável (manifest + service worker sem cache). Bottom bar do vendedor: o menu lateral já vira gaveta no celular; barra inferior fica como melhoria
 - [x] `.dev.vars.example`; seção "Comandos" do CLAUDE.md atualizada
 - [x] Tela de Configurações: conexão com o ERP (segredo criptografado) e equipe
-- [ ] CI (typecheck + test + build) no GitHub Actions
+- [x] CI (typecheck + test + build) no GitHub Actions
 - [ ] Deploy na conta Cloudflare Grupo Semeia (secret `SECRETS_KEY`, migração remota, domínio)
 
 ## Sprint 1 — Cliente Rein (semana 2)
@@ -53,10 +53,10 @@ Marque `[x]` ao concluir. Cada sprint termina com algo demonstrável à AC3.
 - [x] Conversão automática no primeiro pedido (cliente passa para a carteira do vendedor do lead, com histórico); "Cadastrar no ERP" atrás de `pessoa_write_enabled`. **Falta homologar com a Rein** o id do tipo de cliente "Prospect" e os campos obrigatórios do `PUT /pessoa`
 
 ## Sprint 7 — Gestor e go-live (semana 8)
-- [ ] Painel do gestor (positivação, faturamento, ticket, status, contatos, leads, NPS)
-- [ ] Redistribuição de carteira com histórico; parâmetros e templates editáveis
-- [ ] Deploy produção, backups, domínio; treinamento dos 4 vendedores
-- [ ] Baseline das métricas de sucesso (60 dias anteriores)
+- [x] Painel do gestor (`/painel`, plano Distribuidor): positivação, faturamento, ticket, status, contatos feitos × na fila, leads por etapa, NPS, série de 12 meses
+- [x] Redistribuição em massa por filtro (só admin, com prévia e histórico); parâmetros editáveis em Configurações; modelos de mensagem já eram editáveis
+- [x] Guia de deploy/backup/piloto (`docs/05-deploy.md`), `npm run backup`, CI, PWA instalável. **Pendente (pessoas):** executar o deploy, escolher o domínio, treinar os 4 vendedores
+- [x] Comparativo 60 dias × 60 dias anteriores no Painel (positivação, reativados, leads convertidos, contatos). **Pendente:** registrar os números antes do piloto
 
 ## Carteira e ERP (decisão do Augusto/Neto, após a Sprint 6)
 - [x] O ERP manda na carteira (campo do vendedor configurável; sem ele, semente pelo último pedido)

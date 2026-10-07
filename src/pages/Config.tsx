@@ -5,7 +5,7 @@ import { useMe } from '../me'
 import { brl } from '../api'
 
 export default function Config() {
-  return <><PageHead eyebrow="Empresa" title="Configurações" /><div className="stack"><PlanoCard /><ConexaoErp /><PedidoErp /><PessoaErp /><TrocasNoErp /><Sincronizacao /><Modelos /><Equipe /></div></>
+  return <><PageHead eyebrow="Empresa" title="Configurações" /><div className="stack"><PlanoCard /><Parametros /><ConexaoErp /><PedidoErp /><PessoaErp /><TrocasNoErp /><Sincronizacao /><Modelos /><Equipe /></div></>
 }
 
 function ConexaoErp() {
@@ -207,4 +207,35 @@ function TrocasNoErp() {
         <td className="r">{admin && i.status === 'ERRO' && <div className="row" style={{ justifyContent: 'flex-end' }}><button className="btn sm" onClick={() => resolver(i.id, 'ENVIADO')}>Já mudou no ERP</button><button className="btn sm" onClick={() => resolver(i.id, 'PENDENTE')}>Tentar de novo</button></div>}</td></tr>)}</tbody></table></div>}
     {admin && d.pendentes > 0 && <div><button className="btn pri" disabled={ocupado} onClick={enviar}>{ocupado ? 'Enviando…' : `Enviar ${d.pendentes} troca(s) ao ERP agora`}</button></div>}
   </div>
+}
+
+const FREQ: [string, string][] = [['A', 'Curva A'], ['B', 'Curva B'], ['C', 'Curva C'], ['EM_RISCO', 'Cliente em risco'], ['INATIVO', 'Cliente inativo'], ['PROSPECT', 'Nunca comprou']]
+function Parametros() {
+  const { dados: d, erro, recarregar } = useApi<any>('/parametros')
+  const toast = useToast()
+  const [msg, setMsg] = useState(''), [ocupado, setOcupado] = useState(false)
+  if (!d) return <Carregando erro={erro} />
+  async function salvar(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault(); setMsg(''); setOcupado(true)
+    const f = new FormData(e.currentTarget), n = (k: string) => Number(String(f.get(k)).replace(',', '.'))
+    try {
+      const r = await api<any>('/parametros', { method: 'PUT', body: { ativoDias: n('ativoDias'), emRiscoDias: n('emRiscoDias'), agendaSize: n('agendaSize'), recompraFator: n('recompraFator'), freq: Object.fromEntries(FREQ.map(([k]) => [k, n(`freq_${k}`)])) } })
+      toast(`Regras salvas. ${r.recalculados} clientes recalculados.`); recarregar()
+    } catch (x: any) { setMsg(x.message) } finally { setOcupado(false) }
+  }
+  const a = d.atual
+  return <form className="card" style={{ padding: 18, display: 'grid', gap: 12 }} onSubmit={salvar} key={JSON.stringify(a)}>
+    <div><div className="eyebrow">Carteira</div><h3>Regras da carteira</h3>
+      <p className="muted" style={{ margin: '4px 0 0' }}>Quando o cliente passa a “em risco” ou “inativo”, de quantos em quantos dias falar com cada tipo de cliente e quantos clientes entram na agenda do dia. Ao salvar, a carteira é recalculada.</p></div>
+    <div className="grid3">
+      <label className="fl"><span>Ativo até (dias sem comprar)</span><input name="ativoDias" type="number" defaultValue={a.ativoDias} min={7} max={365} required /></label>
+      <label className="fl"><span>Em risco até (dias)</span><input name="emRiscoDias" type="number" defaultValue={a.emRiscoDias} min={8} max={730} required /></label>
+      <label className="fl"><span>Clientes na agenda do dia</span><input name="agendaSize" type="number" defaultValue={a.agendaSize} min={5} max={100} required /></label>
+    </div>
+    <label className="fl" style={{ maxWidth: 260 }}><span>Recompra prevista a partir de (× intervalo médio)</span><input name="recompraFator" type="number" step="0.05" defaultValue={a.recompraFator} min={0.5} max={1.5} required /></label>
+    <div><div className="muted" style={{ fontSize: 12, marginBottom: 6 }}>Falar com o cliente a cada (dias)</div>
+      <div className="grid3">{FREQ.map(([k, l]) => <label className="fl" key={k}><span>{l}</span><input name={`freq_${k}`} type="number" defaultValue={a.freq[k]} min={1} max={180} required /></label>)}</div></div>
+    {msg && <div className="err">{msg}</div>}
+    <div><button className="btn pri" disabled={ocupado}>{ocupado ? 'Salvando…' : 'Salvar regras'}</button></div>
+  </form>
 }

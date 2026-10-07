@@ -113,3 +113,21 @@ export function positivacao(contas: { id: number; status: AccountStatus }[], com
   const positivados = carteira.filter(c => compraramNoMes.has(c.id)).length
   return { total: carteira.length, positivados, taxa: carteira.length ? positivados / carteira.length : 0 }
 }
+
+/* ---------- parâmetros editáveis pelo gestor ---------- */
+export type ParamsEditaveis = { ativoDias: number; emRiscoDias: number; agendaSize: number; recompraFator: number; freq: Params['freq'] }
+const faixa = (v: unknown, min: number, max: number, inteiro = true) => typeof v === 'number' && Number.isFinite(v) && v >= min && v <= max && (!inteiro || Number.isInteger(v))
+/** Confere o que o gestor digitou; recusa valor fora da faixa em vez de corrigir em silêncio. */
+export function validarParamsEditaveis(b: unknown): { ok: true; params: ParamsEditaveis } | { ok: false; erro: string } {
+  const o = (b && typeof b === 'object' ? b : {}) as Record<string, any>, f = (o.freq && typeof o.freq === 'object' ? o.freq : {}) as Record<string, unknown>
+  if (!faixa(o.ativoDias, 7, 365)) return { ok: false, erro: 'Cliente ativo: informe de 7 a 365 dias.' }
+  if (!faixa(o.emRiscoDias, 8, 730) || o.emRiscoDias <= o.ativoDias) return { ok: false, erro: 'Cliente em risco: informe mais dias que o ativo (até 730).' }
+  if (!faixa(o.agendaSize, 5, 100)) return { ok: false, erro: 'Tamanho da agenda: de 5 a 100 clientes.' }
+  if (!faixa(o.recompraFator, 0.5, 1.5, false)) return { ok: false, erro: 'Fator de recompra: de 0,5 a 1,5.' }
+  const freq = {} as Params['freq']
+  for (const k of ['A', 'B', 'C', 'EM_RISCO', 'INATIVO', 'PROSPECT'] as const) {
+    if (!faixa(f[k], 1, 180)) return { ok: false, erro: 'Frequência de contato: de 1 a 180 dias em cada linha.' }
+    freq[k] = f[k] as number
+  }
+  return { ok: true, params: { ativoDias: o.ativoDias, emRiscoDias: o.emRiscoDias, agendaSize: o.agendaSize, recompraFator: o.recompraFator, freq } }
+}

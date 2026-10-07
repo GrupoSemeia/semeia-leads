@@ -90,3 +90,14 @@ describe('positivação e parâmetros', () => {
     expect(p.ativoDias).toBe(60); expect(p.emRiscoDias).toBeGreaterThan(60); expect(p.agendaSize).toBe(25); expect(p.freq.A).toBe(7); expect(p.freq.B).toBe(3)
   })
 })
+
+import { validarParamsEditaveis } from './carteira'
+describe('validarParamsEditaveis', () => {
+  const bom = { ativoDias: 60, emRiscoDias: 150, agendaSize: 30, recompraFator: 0.8, freq: { A: 5, B: 10, C: 20, EM_RISCO: 12, INATIVO: 40, PROSPECT: 25 } }
+  it('aceita valores dentro das faixas e devolve só os campos editáveis', () => { expect(validarParamsEditaveis({ ...bom, lixo: 1 })).toEqual({ ok: true, params: bom }) })
+  it('recusa fora da faixa, em vez de corrigir em silêncio', () => {
+    for (const ruim of [{ ...bom, ativoDias: 3 }, { ...bom, ativoDias: 400 }, { ...bom, emRiscoDias: 60 }, { ...bom, agendaSize: 2 }, { ...bom, agendaSize: 200 }, { ...bom, recompraFator: 3 }, { ...bom, ativoDias: 60.5 }, { ...bom, freq: { ...bom.freq, A: 0 } }, { ...bom, freq: { ...bom.freq, C: 999 } }, { ...bom, freq: { A: 5 } }])
+      expect(validarParamsEditaveis(ruim)).toMatchObject({ ok: false })
+  })
+  it('recusa texto, nulo e corpo vazio', () => { expect(validarParamsEditaveis({ ...bom, ativoDias: '60' })).toMatchObject({ ok: false }); expect(validarParamsEditaveis(null)).toMatchObject({ ok: false }); expect(validarParamsEditaveis({})).toMatchObject({ ok: false }) })
+})

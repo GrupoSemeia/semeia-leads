@@ -16,6 +16,7 @@ Leia este arquivo inteiro antes de mexer no código. Consulte `docs/` conforme a
 | `docs/02-api-rein.md` | Qualquer código que chame a API Rein (HMAC, endpoints, lacunas ⚠️ VALIDAR) |
 | `docs/03-arquitetura.md` | Sync, regras de negócio (ABC, status, score, agenda). **Stack/Prisma/pg-boss desatualizados** — vale esta página |
 | `docs/04-roadmap.md` | Ordem de implementação; marque `[x]` ao concluir |
+| `docs/05-deploy.md` | Publicar, backup, checklist do piloto |
 
 ## Stack (Cloudflare — mesma do AroCerto)
 - **Um Worker** (`wrangler.jsonc`): API Hono em `/api/*` + SPA React (Vite, `dist/`) com fallback SPA. `run_worker_first: ["/api/*"]`.
@@ -91,6 +92,12 @@ npx wrangler secret put SECRETS_KEY   # openssl rand -base64 32
 - Conversão (`convertLeads`, no fim de cada sync): liga o lead ao cadastro do ERP pelo CNPJ e, no primeiro pedido não cancelado, vira `CONVERTIDO`. **O ERP vence:** o vendedor do lead só assume o cliente se a conta ainda estiver sem dono (`donoNaConversao`), e então a troca vai para a fila do ERP.
 - Cadastro no ERP (`POST /api/leads/:id/push-erp`): mesmo padrão de segurança do pedido (trava `pessoa_write_enabled`, config `settings.pessoa_erp`, `ENVIANDO` reservado, nunca repete, gestor resolve com `/erp-resolver`). ⚠️ Id do tipo "Prospect" e campos obrigatórios do `PUT /pessoa` são hipóteses até a Rein confirmar.
 
+## Painel, parâmetros e redistribuição (`routes/painel.ts`, `routes/parametros.ts`, `domain/painel.ts`)
+- **Painel do gestor** (`/api/painel`, `/api/painel/comparativo`): plano Distribuidor (nível 3), só gestor/admin. Faturamento, pedidos, ticket, positivação (clientes que compraram ÷ carteira), série de 12 meses, por vendedor, leads por etapa, NPS (promotores − detratores, últimos 90 dias) e comparativo 60 dias × 60 dias anteriores (baseline do piloto; "reativado" = voltou após > 180 dias parado). Meses e janelas no fuso de Brasília. **Vendas contam para o vendedor da carteira ATUAL do cliente.** Nunca expõe custo/margem. Gráfico: uma série só (cor de destaque), colunas ≤ 24 px com topo arredondado, dica ao passar o mouse/foco e visão em tabela; números de destaque são cartões, não gráfico.
+- **Parâmetros** (`/api/parametros`, gestor): dias de ativo/em risco, tamanho da agenda, fator de recompra e frequência por curva/status em `settings.params`; `validarParamsEditaveis` recusa fora da faixa (não corrige em silêncio) e salvar recalcula a carteira.
+- **Redistribuição em massa por filtro** (`POST /api/accounts/reassign-filtro`): só admin, plano Distribuidor; prévia antes de confirmar; até 2.000 clientes; mesma regra de histórico e fila do ERP da troca individual. A troca individual/seleção continua em todos os planos (só admin).
+- PWA: `public/manifest.webmanifest` + `public/sw.js` (instalável; o service worker **não faz cache**, de propósito: dados de clientes só vêm do servidor, com login). CI em `.github/workflows/ci.yml`. Backup e publicação: `docs/05-deploy.md`.
+
 ## Sync com o ERP (`worker/sync/`, `worker/rein/`)
 - `ReinApi` (`worker/rein/api.ts`) é a única interface que o sync conhece; implementações real e mock (`mock.ts`, "modo de teste" por empresa). Nomes de campos da Rein ficam **só** em `normalize.ts` (⚠️ hipóteses; ajustar lá quando a Rein confirmar). Datas sem fuso da Rein são tratadas como Brasília (`ERP_UTC_OFFSET_HOURS`).
 - Espelho `rein_*` (migração 0002): só o sync escreve. `rein_precos.cost/margin` são sensíveis — nunca devolver ao vendedor. `raw` não guarda imagens nem margens.
@@ -98,5 +105,5 @@ npx wrangler secret put SECRETS_KEY   # openssl rand -base64 32
 - Pedidos: a lista pode vir sem itens → fila `items_synced=0` buscada por `/pedido/{id}` (2 em paralelo). Registro que some do ERP só ganha `deleted_at` após 2 syncs completos sem aparecer.
 
 ## Onde paramos
-**Sprints 0 a 6 concluídas** com o modo de teste: fundação, cliente Rein tipado, mock, sync, carteira, planos, agenda, contato, pós-venda/NPS, catálogo, pré-pedido, funil de leads e escritas no ERP (travadas). Migrações 0001–0007 aplicadas no D1 de produção. Migração 0007 (`owner_erp_sync`) aplicada. Próximo: **Sprint 7** (painel do gestor: positivação, faturamento, ticket, status, contatos, leads por etapa, NPS; redistribuição de carteira em massa por filtro com histórico — **só admin**; parâmetros e modelos editáveis; deploy, backups, domínio, baseline das métricas). O **piloto com 1 vendedor** depende de deploy e de credenciais Rein reais. **Antes de ligar a Rein real:** enviar à Rein as perguntas de `docs/02-api-rein.md` §6 e ajustar `normalize.ts`/`api.ts` (paginação, datas, formato das listas) com a primeira resposta real.
-Pendências de infraestrutura: secret `SECRETS_KEY` e deploy na Cloudflare, domínio, CI, PWA (manifest/service worker), landing page.
+**Sprints 0 a 7 concluídas** (código) com o modo de teste: fundação, cliente Rein tipado, mock, sync, carteira, planos, agenda, contato, pós-venda/NPS, catálogo, pré-pedido, funil de leads e escritas no ERP (travadas). Migrações 0001–0007 aplicadas no D1 de produção. Migração 0007 (`owner_erp_sync`) aplicada; a Sprint 7 não criou migração. **Falta só o que depende de pessoas/credenciais:** deploy e `SECRETS_KEY` (`docs/05-deploy.md`), domínio, credenciais Rein e homologação (perguntas de `docs/02-api-rein.md` §6, 11 e 12), piloto com 1 vendedor, baseline. Depois: cobrança (Asaas), tela de administração da plataforma, imagens de produto (R2), landing, recuperação de senha, alerta ao gestor. **Antes de ligar a Rein real:** enviar à Rein as perguntas de `docs/02-api-rein.md` §6 e ajustar `normalize.ts`/`api.ts` (paginação, datas, formato das listas) com a primeira resposta real.
+Pendências de infraestrutura: secret `SECRETS_KEY` e deploy na Cloudflare, domínio, landing page.
