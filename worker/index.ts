@@ -10,6 +10,7 @@ import { agenda, templates } from './routes/agenda'
 import { publico } from './routes/publico'
 import { catalogo } from './routes/catalogo'
 import { prepedidos } from './routes/prepedidos'
+import { leads } from './routes/leads'
 import { runScheduled } from './sync/engine'
 
 const app = new Hono<App>()
@@ -36,6 +37,8 @@ priv.route('/templates', templates)
 // Profissional (nível 2) ou acima; no teste grátis tudo vale
 priv.use('/catalogo/*', requireNivel(2)); priv.use('/catalogo', requireNivel(2))
 priv.use('/pre-pedidos/*', requireNivel(2)); priv.use('/pre-pedidos', requireNivel(2))
+priv.use('/leads/*', requireNivel(2)); priv.use('/leads', requireNivel(2))
+priv.route('/leads', leads)
 priv.route('/catalogo', catalogo)
 priv.route('/pre-pedidos', prepedidos)
 priv.route('/admin', admin)   // plataforma (Grupo Semeia): só ADMINS

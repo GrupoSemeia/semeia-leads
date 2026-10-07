@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { type App, type Env, tenantOf, requireRole, clean, fail, encryptSecret, decryptSecret, audit } from '../lib'
 import { reinPing, type ReinCredentials } from '../rein/client'
 import { mesclarConfig } from '../domain/pedido'
+import { mesclarConfigPessoa } from '../domain/leads'
 
 export const rein = new Hono<App>()
 rein.use('*', requireRole('manager'))
@@ -56,5 +57,17 @@ rein.put('/pedido', async c => {
   const t = tenantOf(c), cfg = mesclarConfig(await c.req.json())
   await c.env.DB.prepare("INSERT INTO settings (tenant_id, key, value) VALUES (?, 'pedido_erp', ?) ON CONFLICT(tenant_id, key) DO UPDATE SET value=excluded.value").bind(t, JSON.stringify(cfg)).run()
   await audit(c.env.DB, t, c.get('session').userId, 'rein.pedido_config', cfg)
+  return c.json(cfg)
+})
+
+/** Tipo de cliente "Prospect" do ERP, usado ao cadastrar lead como pessoa. ⚠️ VALIDAR o id com a Rein. */
+rein.get('/pessoa', async c => {
+  const r = await c.env.DB.prepare("SELECT value FROM settings WHERE tenant_id=? AND key='pessoa_erp'").bind(tenantOf(c)).first<{ value: string }>()
+  try { return c.json(mesclarConfigPessoa(r ? JSON.parse(r.value) : null)) } catch { return c.json(mesclarConfigPessoa(null)) }
+})
+rein.put('/pessoa', async c => {
+  const t = tenantOf(c), cfg = mesclarConfigPessoa(await c.req.json())
+  await c.env.DB.prepare("INSERT INTO settings (tenant_id, key, value) VALUES (?, 'pessoa_erp', ?) ON CONFLICT(tenant_id, key) DO UPDATE SET value=excluded.value").bind(t, JSON.stringify(cfg)).run()
+  await audit(c.env.DB, t, c.get('session').userId, 'rein.pessoa_config', cfg)
   return c.json(cfg)
 })

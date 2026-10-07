@@ -1,5 +1,7 @@
 import { Hono } from 'hono'
-import { type App, fail, newId, clean } from '../lib'
+import { type App, fail, newId, clean, loadTenantPlano } from '../lib'
+import { nivelDe } from '../plans'
+import { criarLead } from '../leads'
 import { insatisfeito, notaValida } from '../domain/contato'
 
 /** Rotas SEM login. Só o token (192 bits) dá acesso, e ele só mostra o nome da empresa e de quem está respondendo. */
@@ -29,4 +31,29 @@ publico.post('/nps/:token', async c => {
     .bind(newId(), r.tenant_id, r.pessoa_rein_id, r.pedido_rein_id, `Nota ${b.nota} na pesquisa de satisfação`, `TRATAR_NPS:pedido:${r.pedido_rein_id}`))
   await db.batch(stmts)
   return c.json({ ok: true })
+})
+
+/* ---------- formulário "Seja revendedor" (sem login) ---------- */
+const SLUG = /^[a-z0-9-]{1,60}$/
+const LIMITE_TELEFONE_DIA = 3, LIMITE_EMPRESA_DIA = 200
+/** Só empresas com funil de leads (Profissional ou acima, ou teste grátis) e conta ativa têm formulário. Resposta é igual para "não existe" e "indisponível". */
+async function empresaDoFormulario(c: any) {
+  const slug = c.req.param('slug')
+  const t = SLUG.test(slug) ? await c.env.DB.prepare('SELECT id, name, plan, tier, trial_until, extra_sellers FROM tenants WHERE slug = ?').bind(slug).first() : null
+  if (!t || t.plan === 'suspenso' || nivelDe(t) < 2) throw fail(404, 'Formulário indisponível.')
+  return t as any
+}
+publico.get('/revendedor/:slug', async c => { const t = await empresaDoFormulario(c); return c.json({ empresa: t.name }) })
+
+publico.post('/revendedor/:slug', async c => {
+  const t = await empresaDoFormulario(c), b = await c.req.json<any>(), db = c.env.DB
+  if (clean(b.site, 50)) return c.json({ ok: true })   // campo-isca: robô preenche, gente não vê
+  const tel = String(b.whatsapp ?? '').replace(/\D/g, '')
+  const [porTel, porEmpresa] = await Promise.all([
+    tel ? db.prepare("SELECT COUNT(*) AS n FROM leads WHERE tenant_id=? AND source='site' AND whatsapp=? AND created_at >= datetime('now','-1 day')").bind(t.id, tel).first<{ n: number }>() : null,
+    db.prepare("SELECT COUNT(*) AS n FROM leads WHERE tenant_id=? AND source='site' AND created_at >= datetime('now','-1 day')").bind(t.id).first<{ n: number }>(),
+  ])
+  if ((porTel?.n ?? 0) >= LIMITE_TELEFONE_DIA || (porEmpresa?.n ?? 0) >= LIMITE_EMPRESA_DIA) throw fail(429, 'Recebemos muitos pedidos deste contato hoje. Tente amanhã ou fale direto com a empresa.')
+  await criarLead(c.env, t.id, { cnpj: b.cnpj, razaoSocial: b.razaoSocial, contato: b.contato, whatsapp: b.whatsapp, cidade: b.cidade, uf: b.uf, segmento: b.segmento }, { criadoPor: null, publico: true })
+  return c.json({ ok: true })   // mesma resposta para lead novo, repetido ou CNPJ que já é cliente: nada vaza sobre a carteira da empresa
 })

@@ -30,3 +30,9 @@ export const RESULTADOS: [string, string][] = [['VENDEU', 'Vendeu'], ['ORCAMENTO
 export const CANAIS: [string, string][] = [['whatsapp', 'WhatsApp'], ['ligacao', 'Ligação'], ['visita', 'Visita'], ['email', 'E-mail']]
 export const rotuloResultado = (r: string | null) => RESULTADOS.find(x => x[0] === r)?.[1].replace(/ \(.*\)/, '') ?? 'Anotação'
 export const hojeISO = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10)
+
+export const ETAPAS_LEAD: [string, string][] = [['NOVO', 'Novo'], ['CONTATADO', 'Contatado'], ['CATALOGO_ENVIADO', 'Catálogo enviado'], ['NEGOCIANDO', 'Negociando']]
+export const ROTULO_ETAPA: Record<string, string> = { NOVO: 'Novo', CONTATADO: 'Contatado', CATALOGO_ENVIADO: 'Catálogo enviado', NEGOCIANDO: 'Negociando', CONVERTIDO: 'Convertido', PERDIDO: 'Perdido' }
+export const ORIGEM_LEAD: Record<string, string> = { site: 'Site', manual: 'Cadastro manual', lista: 'Lista', indicacao: 'Indicação' }
+export const fCnpj = (c: string) => (c && c.length === 14 ? c.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5') : c)
+export const mascaraCnpj = (v: string) => digitos(v).slice(0, 14).replace(/^(\d{2})(\d)/, '$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3').replace(/\.(\d{3})(\d)/, '.$1/$2').replace(/(\d{4})(\d)/, '$1-$2')

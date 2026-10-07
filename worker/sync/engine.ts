@@ -9,6 +9,7 @@ import { newId } from '../lib'
 import { loadReinCreds } from '../routes/rein'
 import { recomputeAccounts } from '../metrics'
 import { generateTasks } from '../tasks'
+import { convertLeads } from '../leads'
 import { reinApiFor, type ReinApi } from '../rein/api'
 import type { Pedido } from '../rein/normalize'
 import { type JobName, type Task, tasksFor, rotuloTarefa } from './tasks'
@@ -190,7 +191,7 @@ export async function runSlice(env: Env, tenant: string, job: JobName, opts: { r
     // cadastros completos (sozinhos ou dentro da carga inicial) permitem detectar o que sumiu do ERP
     if (job !== 'pedidos') await markMissing(db, tenant, cur.startedAt, ['usuarios', 'tabelas', 'categorias', 'marcas', 'produtos', 'pessoas'])
     // pedidos/cadastros novos mudam curva, status e prioridade: recalcula a carteira
-    try { cur.stats.contas = (await recomputeAccounts(db, tenant)).contas; cur.stats.tarefas = await generateTasks(db, tenant) } catch (e) { console.error('recompute falhou', tenant, e) }
+    try { cur.stats.contas = (await recomputeAccounts(db, tenant)).contas; cur.stats.tarefas = await generateTasks(db, tenant); cur.stats.leadsConvertidos = (await convertLeads(db, tenant)).convertidos } catch (e) { console.error('recompute falhou', tenant, e) }
     await db.prepare("UPDATE sync_state SET status='idle', cursor=NULL, lease_until=NULL, last_ok_at=datetime('now'), last_error=NULL WHERE tenant_id=? AND job=?").bind(tenant, job).run()
     await db.prepare("UPDATE sync_runs SET finished_at=datetime('now'), ok=1, stats=? WHERE id=?").bind(JSON.stringify(cur.stats), runId).run()
     return progressOf(job, 'idle', cur, tasks, true)

@@ -12,6 +12,8 @@ import EmBreve from './pages/EmBreve'
 import Carteira from './pages/Carteira'
 import Cliente from './pages/Cliente'
 import Hoje from './pages/Hoje'
+import Leads from './pages/Leads'
+import SejaRevendedor from './pages/SejaRevendedor'
 import Catalogo from './pages/Catalogo'
 import { PrePedidos, PrePedido } from './pages/PrePedidos'
 import Nps from './pages/Nps'
@@ -59,7 +61,7 @@ function App() {
   const carregar = () => api<Me>('/auth/me').then(setMe).catch(() => setMe({ logado: false } as Me))
   useEffect(() => { carregar() }, [])
   const loc = useLocation()
-  if (/^\/(convite|nps)\//.test(loc.pathname)) return <Routes><Route path="/convite/:token" element={<Convite aoEntrar={carregar} />} /><Route path="/nps/:token" element={<Nps />} /></Routes>
+  if (/^\/(convite|nps|seja-revendedor)\//.test(loc.pathname)) return <Routes><Route path="/convite/:token" element={<Convite aoEntrar={carregar} />} /><Route path="/nps/:token" element={<Nps />} /><Route path="/seja-revendedor/:slug" element={<SejaRevendedor />} /></Routes>
   if (!me) return <Carregando />
   if (!me.logado) return <Routes><Route path="/entrar" element={<Entrar aoEntrar={carregar} />} /><Route path="*" element={<Navigate to="/entrar" replace />} /></Routes>
   return <MeCtx.Provider value={{ me, recarregar: carregar }}>
@@ -68,7 +70,7 @@ function App() {
         <Route path="/" element={<Hoje />} />
         <Route path="/carteira" element={<Carteira />} />
         <Route path="/carteira/:id" element={<Cliente />} />
-        <Route path="/leads" element={<EmBreve eyebrow="Funil" titulo="Leads" texto="Funil de leads com dono e acompanhamento. Chega na Sprint 6." />} />
+        <Route path="/leads" element={<Leads />} />
         <Route path="/catalogo" element={<Catalogo />} />
         <Route path="/pre-pedidos" element={<PrePedidos />} />
         <Route path="/pre-pedidos/:id" element={<PrePedido />} />

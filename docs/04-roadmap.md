@@ -48,9 +48,9 @@ Marque `[x]` ao concluir. Cada sprint termina com algo demonstrável à AC3.
 - [x] Envio ao ERP via `PUT /pedido` atrás de `pedido_write_enabled` (padrão desligado → `PENDENTE_FLAG`), tentativa única, `ENVIANDO` reservado antes da chamada, gestor resolve pedido travado. **Falta homologar com a Rein** os códigos de natureza, uso, presença e meio de pagamento (Configurações → Envio de pedido ao ERP) e o formato real da resposta do PUT
 
 ## Sprint 6 — Leads (semana 7)
-- [ ] Formulário público `/seja-revendedor` + BrasilAPI + dedupe por CNPJ
-- [ ] Rodízio, kanban, follow-up
-- [ ] `leads.convert` automático; "Cadastrar no ERP" atrás de `REIN_PESSOA_WRITE_ENABLED`
+- [x] Formulário público `/seja-revendedor/:slug` (por empresa; só Profissional+; isca anti-robô, 3 pedidos/dia por telefone, 200/dia por empresa) + BrasilAPI + dedupe por CNPJ (índice único de lead aberto)
+- [x] Rodízio circular entre vendedores ativos, kanban (Novo → Contatado → Catálogo enviado → Negociando → Convertido/Perdido com motivo), follow-up (2–3 dias) na tela Hoje
+- [x] Conversão automática no primeiro pedido (cliente passa para a carteira do vendedor do lead, com histórico); "Cadastrar no ERP" atrás de `pessoa_write_enabled`. **Falta homologar com a Rein** o id do tipo de cliente "Prospect" e os campos obrigatórios do `PUT /pessoa`
 
 ## Sprint 7 — Gestor e go-live (semana 8)
 - [ ] Painel do gestor (positivação, faturamento, ticket, status, contatos, leads, NPS)

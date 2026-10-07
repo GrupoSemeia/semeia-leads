@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { api, waLink, telWa } from '../api'
+import { api, waLink, telWa, ROTULO_ETAPA } from '../api'
 import { PageHead, Carregando, Icon, useApi } from '../ui'
 import { useMe } from '../me'
 import RegistrarContato from './RegistrarContato'
@@ -33,6 +33,12 @@ export default function Hoje() {
             </div>
           </div>)}
         </div></div>}
+      {d.leads?.length > 0 && <div className="card" style={{ padding: 0 }}><div style={{ padding: '12px 16px' }}><div className="eyebrow">Leads para acompanhar</div></div><div className="listx">
+        {d.leads.map((l: any) => <div key={l.id} style={{ cursor: 'default', flexWrap: 'wrap' }}>
+          <div className="grow" style={{ minWidth: 180 }}><Link to="/leads" className="t1" style={{ color: 'inherit', textDecoration: 'none' }}>{l.razaoSocial ?? l.contato}</Link>
+            <div className="t2">{ROTULO_ETAPA[l.etapa]} · {l.contato}{l.jaCliente ? ' · já é cliente' : ''}</div></div>
+          {l.whatsapp && <a className="btn wa sm" href={waLink(telWa(l.whatsapp), l.mensagem)} target="_blank" rel="noreferrer"><Icon n="chat" s={16} /> WhatsApp</a>}
+          <Link className="btn sm" to="/leads">Abrir</Link></div>)}</div></div>}
     </div>}
     {alvo && <RegistrarContato pessoaId={alvo.id} nome={alvo.nome} tarefaId={alvo.tarefa?.id} aoFechar={() => setAlvo(null)} aoSalvar={recarregar} />}
   </>

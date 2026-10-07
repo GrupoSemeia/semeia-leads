@@ -5,7 +5,7 @@ import { useMe } from '../me'
 import { brl } from '../api'
 
 export default function Config() {
-  return <><PageHead eyebrow="Empresa" title="Configurações" /><div className="stack"><PlanoCard /><ConexaoErp /><PedidoErp /><Sincronizacao /><Modelos /><Equipe /></div></>
+  return <><PageHead eyebrow="Empresa" title="Configurações" /><div className="stack"><PlanoCard /><ConexaoErp /><PedidoErp /><PessoaErp /><Sincronizacao /><Modelos /><Equipe /></div></>
 }
 
 function ConexaoErp() {
@@ -159,6 +159,23 @@ function PedidoErp() {
     <div><div className="eyebrow">Pré-pedido</div><h3>Envio de pedido ao ERP</h3>
       <p className="muted" style={{ margin: '4px 0 0' }}>Valores que o ERP exige para criar um pedido de venda. Peça os códigos certos à Rein e à AC3 antes de ligar “Permitir enviar pedidos ao ERP”: pedido tem efeito fiscal.</p></div>
     <div className="grid2">{CAMPOS_PEDIDO.map(([k, l, t]) => <label className="fl" key={k}><span>{l}</span><input name={k} type={t} defaultValue={c[k] ?? ''} /></label>)}</div>
+    <div><button className="btn pri">Salvar</button></div>
+  </form>
+}
+
+function PessoaErp() {
+  const { dados: c, erro, recarregar } = useApi<any>('/rein/pessoa')
+  const toast = useToast()
+  if (!c) return <Carregando erro={erro} />
+  async function salvar(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    try { await api('/rein/pessoa', { method: 'PUT', body: Object.fromEntries(new FormData(e.currentTarget)) }); toast('Configuração salva.'); recarregar() } catch (x: any) { toast(x.message) }
+  }
+  return <form className="card" style={{ padding: 18, display: 'grid', gap: 12 }} onSubmit={salvar}>
+    <div><div className="eyebrow">Leads</div><h3>Cadastro de lead no ERP</h3>
+      <p className="muted" style={{ margin: '4px 0 0' }}>Código do tipo de cliente “Prospect” no ERP, usado ao cadastrar um lead como pessoa. Peça o código certo à Rein antes de ligar “Permitir cadastrar clientes no ERP”.</p></div>
+    <div className="grid2"><label className="fl"><span>Código do tipo de cliente</span><input name="tipoClienteId" type="number" defaultValue={c.tipoClienteId ?? ''} /></label>
+      <label className="fl"><span>Nome do tipo</span><input name="tipoClienteNome" defaultValue={c.tipoClienteNome} /></label></div>
     <div><button className="btn pri">Salvar</button></div>
   </form>
 }

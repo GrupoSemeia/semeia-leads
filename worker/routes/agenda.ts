@@ -1,9 +1,10 @@
 import { Hono } from 'hono'
-import { type App, tenantOf, requireRole, fail, clean } from '../lib'
+import { type App, tenantOf, requireRole, fail, clean, loadTenantPlano } from '../lib'
 import { loadParams } from '../metrics'
 import { agendaCompleta, renderModelo, MODELOS_PADRAO, CHAVES_MODELO, type TarefaAberta } from '../domain/contato'
 import type { ContaAgenda, Curve, AccountStatus } from '../domain/carteira'
 import { ensureTemplates } from '../tasks'
+import { nivelDe } from '../plans'
 
 export const agenda = new Hono<App>()
 const utc = (s: string | null) => (s ? new Date(s.replace(' ', 'T') + 'Z') : null)
@@ -57,7 +58,15 @@ agenda.get('/', async c => {
   const modelo = new Map(modelos.map(m => [m.key, m.body]))
   const origem = new URL(c.req.url).origin
 
+  // leads para acompanhar (funil é do plano Profissional em diante)
+  const plano = await loadTenantPlano(db, t)
+  const leadsDevidos = nivelDe(plano) >= 2 ? (await db.prepare(
+    `SELECT l.id, l.contact_name AS contato, l.razao_social AS razaoSocial, l.whatsapp, l.stage AS etapa, l.existing_client AS jaCliente, l.next_followup_at AS vencia
+       FROM leads l WHERE l.tenant_id = ? AND l.stage IN ('NOVO','CONTATADO','CATALOGO_ENVIADO','NEGOCIANDO') AND l.next_followup_at <= ?${todos ? '' : ' AND l.owner_id = ?'}
+      ORDER BY l.next_followup_at LIMIT 20`).bind(t, fmt(agora), ...donoArg).all<any>()).results : []
+  const corpoLead = modelo.get('saudacao') ?? MODELOS_PADRAO[0].body
   return c.json({
+    leads: leadsDevidos.map((l: any) => ({ ...l, mensagem: renderModelo(corpoLead, { contato: l.contato, vendedor: s.name, empresa: empresa?.name, produto: '', link: '' }) })),
     total: totalDevido, mostrando: itens.length,
     itens: itens.map(i => {
       const pe = pessoa.get(i.id)
