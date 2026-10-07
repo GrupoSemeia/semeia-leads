@@ -63,19 +63,28 @@ export function parseBrasilApi(json: unknown): Enriquecimento | null {
 
 /* ---------- cadastro no ERP (PUT /pessoa) ---------- */
 /** ⚠️ VALIDAR com a Rein: id do tipo de cliente "Prospect" e quais campos são obrigatórios. Tudo vem da configuração da empresa. */
-export type ConfigPessoaErp = { tipoClienteId: number | null; tipoClienteNome: string }
-export const CONFIG_PESSOA_VAZIA: ConfigPessoaErp = { tipoClienteId: null, tipoClienteNome: 'Prospect' }
+export type ConfigPessoaErp = {
+  tipoClienteId: number | null
+  tipoClienteNome: string
+  /** Nome do campo da pessoa no ERP que guarda o vendedor da carteira. Vazio = desligado (o app não lê nem escreve vendedor no ERP). ⚠️ VALIDAR com a Rein. */
+  campoVendedor: string
+}
+export const CONFIG_PESSOA_VAZIA: ConfigPessoaErp = { tipoClienteId: null, tipoClienteNome: 'Prospect', campoVendedor: '' }
+export const campoValido = (c: unknown): c is string => typeof c === 'string' && /^[A-Za-z][A-Za-z0-9_]{0,40}$/.test(c)
 export function mesclarConfigPessoa(bruto: unknown): ConfigPessoaErp {
   const o = (bruto && typeof bruto === 'object' ? bruto : {}) as Record<string, any>
   const id = o.tipoClienteId === '' || o.tipoClienteId == null ? null : Number(o.tipoClienteId)
-  return { tipoClienteId: Number.isInteger(id) && id! > 0 ? id : null, tipoClienteNome: String(o.tipoClienteNome ?? '').trim().slice(0, 60) || 'Prospect' }
+  const campo = String(o.campoVendedor ?? '').trim()
+  return { tipoClienteId: Number.isInteger(id) && id! > 0 ? id : null, tipoClienteNome: String(o.tipoClienteNome ?? '').trim().slice(0, 60) || 'Prospect', campoVendedor: campoValido(campo) ? campo : '' }
 }
-export type PessoaErp = { Nome: string; RazaoSocial: string; Cnpj: string; TipoPessoa: 'J'; Observacao: string; TipoCliente: { Id: number; Nome: string }[] }
-export function montarCorpoPessoa(l: { cnpj: string; razaoSocial: string | null; fantasia?: string | null; contato: string; whatsapp: string | null }, cfg: ConfigPessoaErp): { ok: true; corpo: PessoaErp } | { ok: false; erro: string } {
+export type PessoaErp = { Nome: string; RazaoSocial: string; Cnpj: string; TipoPessoa: 'J'; Observacao: string; TipoCliente: { Id: number; Nome: string }[]; [campo: string]: unknown }
+export function montarCorpoPessoa(l: { cnpj: string; razaoSocial: string | null; fantasia?: string | null; contato: string; whatsapp: string | null; vendedorReinId?: number | null }, cfg: ConfigPessoaErp): { ok: true; corpo: PessoaErp } | { ok: false; erro: string } {
   if (!cnpjValido(l.cnpj)) return { ok: false, erro: 'CNPJ inválido.' }
   if (cfg.tipoClienteId === null) return { ok: false, erro: 'Para cadastrar no ERP, falta configurar o código do tipo de cliente “Prospect” (Configurações).' }
   const razao = l.razaoSocial?.trim() || ''
   if (!razao) return { ok: false, erro: 'Preencha a razão social antes de cadastrar no ERP.' }
-  return { ok: true, corpo: { Nome: (l.fantasia?.trim() || razao).slice(0, 120), RazaoSocial: razao.slice(0, 120), Cnpj: soDigitos(l.cnpj), TipoPessoa: 'J',
-    Observacao: `Cadastrado pelo Semeia Leads. Contato: ${l.contato}${l.whatsapp ? ` · WhatsApp ${l.whatsapp}` : ''}`, TipoCliente: [{ Id: cfg.tipoClienteId, Nome: cfg.tipoClienteNome }] } }
+  const corpo: PessoaErp = { Nome: (l.fantasia?.trim() || razao).slice(0, 120), RazaoSocial: razao.slice(0, 120), Cnpj: soDigitos(l.cnpj), TipoPessoa: 'J',
+    Observacao: `Cadastrado pelo Semeia Leads. Contato: ${l.contato}${l.whatsapp ? ` · WhatsApp ${l.whatsapp}` : ''}`, TipoCliente: [{ Id: cfg.tipoClienteId, Nome: cfg.tipoClienteNome }] }
+  if (cfg.campoVendedor && l.vendedorReinId) corpo[cfg.campoVendedor] = l.vendedorReinId   // já nasce na carteira certa do ERP
+  return { ok: true, corpo }
 }

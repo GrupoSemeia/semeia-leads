@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
 import { type App, type C, tenantOf, requireRole, fail, newId, clean, audit, digits } from '../lib'
-import { ehEtapa, validarTransicao, proximoFollowup, mesclarConfigPessoa, montarCorpoPessoa, estaAberto, ABERTAS, type Etapa } from '../domain/leads'
+import { ehEtapa, validarTransicao, proximoFollowup, montarCorpoPessoa, estaAberto, ABERTAS, type Etapa } from '../domain/leads'
 import { criarLead, escolherDonoRodizio } from '../leads'
+import { trocarDonoContas, carregarConfigPessoa } from '../carteira-erp'
 import { loadReinCreds } from './rein'
 import { reinApiFor } from '../rein/api'
 
@@ -37,13 +38,19 @@ leads.get('/', async c => {
   return c.json({ itens: r.results, linkFormulario: `${new URL(c.req.url).origin}/seja-revendedor/${empresa?.slug}` })
 })
 
-/** Cadastro manual. Vendedor cadastra para si; gestor escolhe o dono ou deixa o rodízio decidir. */
+/**
+ * Cadastro manual. Quem atende é o vendedor da carteira do CNPJ (ERP/app). Sem carteira: o admin pode escolher o vendedor;
+ * vendedor cadastra para si; gestor deixa o rodízio decidir. Só o admin escolhe/troca vendedor de lead.
+ */
 leads.post('/', async c => {
   const t = tenantOf(c), s = c.get('session'), b = await c.req.json<any>()
-  let donoPreferido: string | null = null
-  if (s.role === 'seller') donoPreferido = s.userId
-  else if (b.dono) { if (!(await donoAtivo(c.env.DB, t, String(b.dono)))) throw fail(400, 'Essa pessoa não faz parte da equipe.'); donoPreferido = String(b.dono) }
-  const r = await criarLead(c.env, t, b, { criadoPor: s.userId, donoPreferido, publico: false })
+  let escolhidoPeloAdmin: string | null = null
+  if (b.dono) {
+    if (s.role !== 'admin') throw fail(403, 'Só o administrador escolhe o vendedor do lead.')
+    if (!(await donoAtivo(c.env.DB, t, String(b.dono)))) throw fail(400, 'Essa pessoa não faz parte da equipe.')
+    escolhidoPeloAdmin = String(b.dono)
+  }
+  const r = await criarLead(c.env, t, b, { criadoPor: s.userId, escolhidoPeloAdmin, vendedorQueCadastrou: s.role === 'seller' ? s.userId : null, publico: false })
   return c.json({ id: r.id, dono: r.dono })
 })
 
@@ -72,9 +79,16 @@ leads.patch('/:id', async c => {
     stmts.push(evento(db, t, l.id, s.userId, 'etapa', `${l.stage} → ${b.etapa}${b.etapa === 'PERDIDO' ? ` (${clean(b.motivoPerda, 200)})` : ''}`))
   }
   if (b.dono !== undefined && (b.dono || null) !== l.owner_id) {
-    if (s.role === 'seller') throw fail(403, 'Só o gestor troca o vendedor do lead.')
+    if (s.role !== 'admin') throw fail(403, 'Só o administrador troca o lead de carteira.')
     if (b.dono && !(await donoAtivo(db, t, String(b.dono)))) throw fail(400, 'Essa pessoa não faz parte da equipe.')
-    sets.push('owner_id=?'); args.push(b.dono || null); stmts.push(evento(db, t, l.id, s.userId, 'dono', b.dono ? 'Passou para outro vendedor.' : 'Ficou sem dono.'))
+    if (l.pessoa_rein_id) {
+      // lead de cliente que existe no ERP: trocar o lead é trocar a carteira do cliente (e isso vai para o ERP)
+      if (!b.dono) throw fail(400, 'Este lead segue a carteira de um cliente do ERP. Escolha um vendedor.')
+      const conta = await db.prepare('SELECT 1 FROM accounts WHERE tenant_id=? AND pessoa_rein_id=?').bind(t, l.pessoa_rein_id).first()
+      if (conta) { await trocarDonoContas(db, t, [l.pessoa_rein_id], String(b.dono), s.userId); stmts.push(evento(db, t, l.id, s.userId, 'dono', 'Cliente passou para outra carteira (atualização do ERP em fila).')) }
+    }
+    sets.push('owner_id=?'); args.push(b.dono || null)
+    if (!l.pessoa_rein_id) stmts.push(evento(db, t, l.id, s.userId, 'dono', b.dono ? 'Passou para outro vendedor.' : 'Ficou sem dono.'))
   }
   if (b.adiarDias !== undefined) {
     const n = Number(b.adiarDias)
@@ -107,8 +121,9 @@ leads.post('/:id/push-erp', async c => {
   if (!creds) throw fail(400, 'Configure a conexão com o ERP primeiro.')
   if (!creds.mock && (!creds.clientId || !creds.clientSecret || !creds.database)) throw fail(400, 'Preencha as credenciais do ERP ou ligue o modo de teste.')
   let fantasia: string | null = null; try { fantasia = l.enrichment ? JSON.parse(l.enrichment).fantasia ?? null : null } catch { /* ignora */ }
-  const cfg = mesclarConfigPessoa(await db.prepare("SELECT value FROM settings WHERE tenant_id=? AND key='pessoa_erp'").bind(t).first<{ value: string }>().then(r => { try { return r ? JSON.parse(r.value) : null } catch { return null } }))
-  const corpo = montarCorpoPessoa({ cnpj: l.cnpj, razaoSocial: l.razao_social, fantasia, contato: l.contact_name, whatsapp: l.whatsapp }, cfg)
+  const cfg = await carregarConfigPessoa(db, t)
+  const vend = l.owner_id ? await db.prepare('SELECT rein_user_id FROM members WHERE tenant_id=? AND user_id=? AND active=1').bind(t, l.owner_id).first<{ rein_user_id: number | null }>() : null
+  const corpo = montarCorpoPessoa({ cnpj: l.cnpj, razaoSocial: l.razao_social, fantasia, contato: l.contact_name, whatsapp: l.whatsapp, vendedorReinId: vend?.rein_user_id ?? null }, cfg)
   if (!corpo.ok) throw fail(400, corpo.erro)
 
   const claim = await db.prepare("UPDATE leads SET erp_status='ENVIANDO', updated_at=datetime('now') WHERE id=? AND tenant_id=? AND erp_status IN ('NAO_ENVIADO','PENDENTE_FLAG','ERRO')").bind(l.id, t).run()

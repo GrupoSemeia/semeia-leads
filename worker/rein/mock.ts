@@ -80,6 +80,8 @@ export function mockApi(): ReinApi {
       const rows = w.pedidos.filter(p => { const d = String(p.DataMov).slice(0, 10); return d >= f.de && d <= f.ate }).map(({ Produto, ...head }) => head)   // lista sem itens
       return paged(rows, f.page, nPedido)
     },
+    getPessoa: async id => (w.pessoas.find(x => x.Id === id) as Record<string, unknown> | undefined) ?? null,
+    updatePessoa: async () => {},   // modo de teste: finge que o ERP aceitou
     createPessoa: async () => ({ id: 800_000 + Math.floor(Math.random() * 99_999) }),
     createPedido: async () => ({ id: 900_000 + Math.floor(Math.random() * 99_999) }),   // modo de teste: finge que o ERP aceitou
     getPedido: async id => { const p = w.pedidos.find(x => x.Id === id); return p ? nPedido(p) : null },

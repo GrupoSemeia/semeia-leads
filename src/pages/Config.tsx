@@ -5,7 +5,7 @@ import { useMe } from '../me'
 import { brl } from '../api'
 
 export default function Config() {
-  return <><PageHead eyebrow="Empresa" title="Configurações" /><div className="stack"><PlanoCard /><ConexaoErp /><PedidoErp /><PessoaErp /><Sincronizacao /><Modelos /><Equipe /></div></>
+  return <><PageHead eyebrow="Empresa" title="Configurações" /><div className="stack"><PlanoCard /><ConexaoErp /><PedidoErp /><PessoaErp /><TrocasNoErp /><Sincronizacao /><Modelos /><Equipe /></div></>
 }
 
 function ConexaoErp() {
@@ -172,10 +172,39 @@ function PessoaErp() {
     try { await api('/rein/pessoa', { method: 'PUT', body: Object.fromEntries(new FormData(e.currentTarget)) }); toast('Configuração salva.'); recarregar() } catch (x: any) { toast(x.message) }
   }
   return <form className="card" style={{ padding: 18, display: 'grid', gap: 12 }} onSubmit={salvar}>
-    <div><div className="eyebrow">Leads</div><h3>Cadastro de lead no ERP</h3>
+    <div><div className="eyebrow">Leads e carteira</div><h3>Cadastro no ERP e vendedor da carteira</h3>
       <p className="muted" style={{ margin: '4px 0 0' }}>Código do tipo de cliente “Prospect” no ERP, usado ao cadastrar um lead como pessoa. Peça o código certo à Rein antes de ligar “Permitir cadastrar clientes no ERP”.</p></div>
     <div className="grid2"><label className="fl"><span>Código do tipo de cliente</span><input name="tipoClienteId" type="number" defaultValue={c.tipoClienteId ?? ''} /></label>
       <label className="fl"><span>Nome do tipo</span><input name="tipoClienteNome" defaultValue={c.tipoClienteNome} /></label></div>
+    <label className="fl"><span>Campo do vendedor no cadastro do ERP</span><input name="campoVendedor" defaultValue={c.campoVendedor} placeholder="Ex.: o nome do campo que a Rein indicar" autoComplete="off" /></label>
+    <p className="muted" style={{ margin: 0 }}>Quando preenchido, o ERP manda na carteira: o vendedor do cliente é lido desse campo, e cada troca de carteira feita aqui (só o administrador troca) é gravada nele. Deixe vazio até a Rein confirmar o nome do campo.</p>
     <div><button className="btn pri">Salvar</button></div>
   </form>
+}
+
+const ST_TROCA: Record<string, string> = { PENDENTE: 'Aguardando envio', ENVIANDO: 'Enviando…', ERRO: 'Erro', ENVIADO: 'No ERP' }
+function TrocasNoErp() {
+  const { me } = useMe(), admin = me.usuario.papel === 'admin'
+  const { dados: d, erro, recarregar } = useApi<any>('/accounts/erp-pendencias')
+  const toast = useToast()
+  const [ocupado, setOcupado] = useState(false)
+  if (!d) return <Carregando erro={erro} />
+  async function enviar() {
+    setOcupado(true)
+    try {
+      let r: any, voltas = 0
+      do { r = await api<any>('/accounts/erp-pendencias/processar', { body: {} }); voltas++ } while (!r.bloqueio && r.processados > 0 && r.restantes > 0 && voltas < 50)
+      toast(r.bloqueio === 'campo' ? 'Falta configurar o campo do vendedor no ERP.' : r.bloqueio === 'trava' ? 'O cadastro/atualização de pessoas no ERP está desligado.' : r.bloqueio ? 'Confira a conexão com o ERP.' : 'Envio concluído.')
+    } catch (x: any) { toast(x.message) } finally { setOcupado(false); recarregar() }
+  }
+  const resolver = async (id: string, resultado: string) => { try { await api(`/accounts/erp-pendencias/${id}/resolver`, { body: { resultado } }); recarregar() } catch (x: any) { toast(x.message) } }
+  return <div className="card" style={{ padding: 18, display: 'grid', gap: 12 }}>
+    <div><div className="eyebrow">Carteira</div><h3>Trocas de vendedor no ERP</h3>
+      <p className="muted" style={{ margin: '4px 0 0' }}>Quando o administrador troca um cliente de carteira, a troca entra aqui e é enviada ao ERP. {!d.campoConfigurado && 'Enquanto o campo do vendedor não for configurado (acima), as trocas ficam só no app.'} {d.campoConfigurado && !d.escritaLigada && 'A escrita de pessoas no ERP está desligada: as trocas aguardam.'}</p></div>
+    {d.itens.length === 0 ? <p className="muted" style={{ margin: 0 }}>Nenhuma troca recente.</p> : <div className="scrollx"><table className="tbl"><tbody>
+      {d.itens.map((i: any) => <tr key={i.id}><td>{i.cliente ?? `Cliente ${i.pessoaId}`}<div className="muted" style={{ fontSize: 12 }}>para {i.para}</div></td>
+        <td><span className={`pill ${i.status === 'ENVIADO' ? 'p-aprovado' : i.status === 'ERRO' ? 'p-recusado' : 'p-enviado'}`}>{ST_TROCA[i.status]}</span>{i.erro && <div className="muted" style={{ fontSize: 12, maxWidth: 260 }}>{i.erro}</div>}</td>
+        <td className="r">{admin && i.status === 'ERRO' && <div className="row" style={{ justifyContent: 'flex-end' }}><button className="btn sm" onClick={() => resolver(i.id, 'ENVIADO')}>Já mudou no ERP</button><button className="btn sm" onClick={() => resolver(i.id, 'PENDENTE')}>Tentar de novo</button></div>}</td></tr>)}</tbody></table></div>}
+    {admin && d.pendentes > 0 && <div><button className="btn pri" disabled={ocupado} onClick={enviar}>{ocupado ? 'Enviando…' : `Enviar ${d.pendentes} troca(s) ao ERP agora`}</button></div>}
+  </div>
 }

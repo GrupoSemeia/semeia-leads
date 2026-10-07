@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { type App, tenantOf, requireRole, fail, newId, audit, digits, clean } from '../lib'
 import { recomputeAccounts, rescoreAccount } from '../metrics'
+import { trocarDonoContas, processarVendedorErp, carregarConfigPessoa } from '../carteira-erp'
 import { efeitoDoContato, concluiTarefa, RESULTADOS, CANAIS, renderModelo, MODELOS_PADRAO, type Resultado } from '../domain/contato'
 import { ensureTemplates } from '../tasks'
 
@@ -72,83 +73,46 @@ accounts.get('/:id{[0-9]+}', async c => {
 /* ---- ações do gestor ---- */
 accounts.post('/recompute', requireRole('manager'), async c => c.json(await recomputeAccounts(c.env.DB, tenantOf(c))))
 
-/** Passa clientes de vendedor (ou de "sem dono") para outro, com histórico. */
-accounts.post('/reassign', requireRole('manager'), async c => {
+/**
+ * Passa clientes de vendedor (ou de "sem dono") para outro. SÓ O ADMINISTRADOR da empresa troca carteira (decisão do Augusto/Neto).
+ * A troca entra na fila de atualização do ERP e leva junto os leads abertos do cliente.
+ */
+accounts.post('/reassign', requireRole(), async c => {
   const t = tenantOf(c), db = c.env.DB, b = await c.req.json<any>()
   const ids: number[] = Array.isArray(b.ids) ? [...new Set<number>(b.ids.map(Number).filter((n: number) => Number.isInteger(n)))] : []
   if (!ids.length) throw fail(400, 'Escolha pelo menos um cliente.')
   if (ids.length > 500) throw fail(400, 'Mova até 500 clientes por vez.')
   const para: string | null = b.para ? String(b.para) : null
   if (para && !(await db.prepare('SELECT 1 FROM members WHERE tenant_id=? AND user_id=? AND active=1').bind(t, para).first())) throw fail(400, 'Essa pessoa não faz parte da equipe.')
-  const marcas = ids.map(() => '?').join(',')
-  const atuais = await db.prepare(`SELECT pessoa_rein_id AS id, owner_id FROM accounts WHERE tenant_id=? AND pessoa_rein_id IN (${marcas})`).bind(t, ...ids).all<any>()
-  const mudam = atuais.results.filter((r: any) => (r.owner_id ?? null) !== para)
   const me = c.get('session').userId
-  const stmts = mudam.flatMap((r: any) => [
-    db.prepare('UPDATE accounts SET owner_id=? WHERE tenant_id=? AND pessoa_rein_id=?').bind(para, t, r.id),
-    db.prepare('INSERT INTO ownership_history (id, tenant_id, pessoa_rein_id, from_user_id, to_user_id, by_user_id) VALUES (?,?,?,?,?,?)').bind(newId(), t, r.id, r.owner_id, para, me),
+  const movidos = await trocarDonoContas(db, t, ids, para, me)
+  await audit(db, t, me, 'accounts.reassign', { qtd: movidos, para })
+  return c.json({ movidos })
+})
+
+/* ---- trocas de vendedor que ainda precisam chegar ao ERP ---- */
+accounts.get('/erp-pendencias', requireRole('manager'), async c => {
+  const t = tenantOf(c), db = c.env.DB
+  const [itens, resumo, cfg, ligada] = await Promise.all([
+    db.prepare(`SELECT s.id, s.pessoa_rein_id AS pessoaId, p.name AS cliente, u.name AS para, s.status, s.error AS erro, s.attempts, s.created_at AS criadoEm
+                  FROM owner_erp_sync s LEFT JOIN rein_pessoas p ON p.tenant_id = s.tenant_id AND p.rein_id = s.pessoa_rein_id JOIN users u ON u.id = s.to_user_id
+                 WHERE s.tenant_id = ? AND (s.status <> 'ENVIADO' OR s.updated_at >= datetime('now','-7 days')) ORDER BY s.created_at DESC LIMIT 100`).bind(t).all(),
+    db.prepare("SELECT status, COUNT(*) AS n FROM owner_erp_sync WHERE tenant_id=? GROUP BY status").bind(t).all<any>(),
+    carregarConfigPessoa(db, t),
+    db.prepare('SELECT pessoa_write_enabled AS e FROM tenant_rein WHERE tenant_id=?').bind(t).first<{ e: number }>(),
   ])
-  for (let i = 0; i < stmts.length; i += 80) await db.batch(stmts.slice(i, i + 80))
-  await audit(db, t, me, 'accounts.reassign', { qtd: mudam.length, para })
-  return c.json({ movidos: mudam.length })
+  const n = (s: string) => resumo.results.find((x: any) => x.status === s)?.n ?? 0
+  return c.json({ itens: itens.results, pendentes: n('PENDENTE') + n('ENVIANDO'), erros: n('ERRO'), campoConfigurado: !!cfg.campoVendedor, escritaLigada: !!ligada?.e })
 })
-
-/* ---- contato com o cliente ---- */
-/** Conta que o usuário pode trabalhar: vendedor só a própria; gestor/admin qualquer da empresa. */
-async function contaAcessivel(c: any, id: number) {
-  const meu = escopoVendedor(c)
-  const a = await c.env.DB.prepare(`SELECT a.pessoa_rein_id AS id, p.name, p.whatsapp FROM accounts a JOIN rein_pessoas p ON p.tenant_id=a.tenant_id AND p.rein_id=a.pessoa_rein_id
-    WHERE a.tenant_id = ? AND a.pessoa_rein_id = ?${meu ? ' AND a.owner_id = ?' : ''}`).bind(...[tenantOf(c), id, ...(meu ? [meu] : [])]).first()
-  if (!a) throw fail(404, 'Cliente não encontrado.')
-  return a as { id: number; name: string; whatsapp: string | null }
-}
-
-/** Registrar contato feito: grava no histórico, define o próximo contato pelo resultado e conclui a tarefa. */
-accounts.post('/:id{[0-9]+}/interactions', async c => {
-  const t = tenantOf(c), id = Number(c.req.param('id')), db = c.env.DB, b = await c.req.json<any>(), me = c.get('session').userId, agora = new Date()
-  await contaAcessivel(c, id)
-  const canal = CANAIS.includes(b.canal) ? b.canal : 'whatsapp'
-  const resultado: Resultado | null = RESULTADOS.includes(b.resultado) ? b.resultado : null
-  if (!resultado) throw fail(400, 'Escolha o resultado do contato.')
-  const efeito = efeitoDoContato(resultado, agora, b.reagendarPara ? new Date(`${String(b.reagendarPara).slice(0, 10)}T12:00:00Z`) : null)
-  if (!efeito.ok) throw fail(400, efeito.erro)
-  const fmt = (d: Date | null) => (d ? d.toISOString().slice(0, 19).replace('T', ' ') : null)
-  const stmts = [
-    db.prepare('INSERT INTO interactions (id, tenant_id, pessoa_rein_id, user_id, channel, result, note, next_contact_at) VALUES (?,?,?,?,?,?,?,?)')
-      .bind(newId(), t, id, me, canal, resultado, clean(b.nota, 500) || null, fmt(efeito.reagendarPara)),
-    db.prepare('UPDATE accounts SET last_contact_at=?, reschedule_at=? WHERE tenant_id=? AND pessoa_rein_id=?').bind(fmt(agora), fmt(efeito.reagendarPara), t, id),
-  ]
-  if (concluiTarefa(resultado)) {
-    // a tarefa escolhida na agenda e o pós-venda D+1 do cliente deixam de pendurar; "não respondeu" mantém tudo aberto
-    stmts.push(db.prepare(`UPDATE tasks SET status='FEITA', done_at=datetime('now') WHERE tenant_id=? AND pessoa_rein_id=? AND status='ABERTA' AND (id = ? OR type = 'POS_VENDA_D1')`).bind(t, id, String(b.tarefaId ?? '')))
-  } else if (b.tarefaId) {
-    stmts.push(db.prepare(`UPDATE tasks SET due_at=? WHERE tenant_id=? AND id=? AND pessoa_rein_id=? AND status='ABERTA'`).bind(fmt(efeito.reagendarPara), t, String(b.tarefaId), id))
-  }
-  await db.batch(stmts)
-  await rescoreAccount(db, t, id, agora)
-  return c.json({ ok: true, proximoContato: fmt(efeito.reagendarPara) })
-})
-
-/** Clique no botão de WhatsApp: fica no histórico, mas não conta como contato feito (o vendedor ainda precisa registrar o resultado). */
-accounts.post('/:id{[0-9]+}/whatsapp-click', async c => {
-  const id = Number(c.req.param('id'))
-  await contaAcessivel(c, id)
-  await c.env.DB.prepare("INSERT INTO interactions (id, tenant_id, pessoa_rein_id, user_id, channel, note) VALUES (?,?,?,?, 'whatsapp', 'Abriu o WhatsApp')").bind(newId(), tenantOf(c), id, c.get('session').userId).run()
+/** Envia agora as trocas pendentes (uma fatia por chamada; o navegador repete até acabar). */
+accounts.post('/erp-pendencias/processar', requireRole(), async c => c.json(await processarVendedorErp(c.env, tenantOf(c))))
+/** O admin confere no ERP uma troca que deu erro: marca como enviada (o vendedor já mudou lá) ou manda tentar de novo. */
+accounts.post('/erp-pendencias/:id/resolver', requireRole(), async c => {
+  const t = tenantOf(c), b = await c.req.json<any>(), id = c.req.param('id')
+  const novo = b.resultado === 'ENVIADO' ? 'ENVIADO' : b.resultado === 'PENDENTE' ? 'PENDENTE' : null
+  if (!novo) throw fail(400, 'Escolha “ENVIADO” ou “PENDENTE”.')
+  const r = await c.env.DB.prepare("UPDATE owner_erp_sync SET status=?, error=NULL, attempts=0, updated_at=datetime('now') WHERE id=? AND tenant_id=? AND status IN ('ERRO','ENVIANDO')").bind(novo, id, t).run()
+  if (!r.meta.changes) throw fail(409, 'Só dá para resolver troca com erro ou travada.')
+  await audit(c.env.DB, t, c.get('session').userId, 'carteira.erp_resolvido', { id, novo })
   return c.json({ ok: true })
-})
-
-/** Mensagem pronta para o cliente a partir de um modelo da empresa. */
-accounts.get('/:id{[0-9]+}/mensagem', async c => {
-  const t = tenantOf(c), id = Number(c.req.param('id')), db = c.env.DB
-  const conta = await contaAcessivel(c, id)
-  const key = c.req.query('modelo') ?? 'oferta'
-  const [modelos, empresa, top] = await Promise.all([
-    ensureTemplates(db, t),
-    db.prepare('SELECT name FROM tenants WHERE id=?').bind(t).first<{ name: string }>(),
-    db.prepare(`SELECT pr.name FROM rein_pedido_itens i JOIN rein_pedidos o ON o.tenant_id=i.tenant_id AND o.rein_id=i.pedido_rein_id AND o.cancelled=0
-                  JOIN rein_produtos pr ON pr.tenant_id=i.tenant_id AND pr.rein_id=i.produto_rein_id WHERE i.tenant_id=? AND o.pessoa_rein_id=? GROUP BY pr.rein_id ORDER BY SUM(i.qty) DESC LIMIT 1`).bind(t, id).first<{ name: string }>(),
-  ])
-  const corpo = modelos.find(m => m.key === key)?.body ?? MODELOS_PADRAO.find(m => m.key === key)?.body
-  if (!corpo) throw fail(404, 'Modelo desconhecido.')
-  return c.json({ texto: renderModelo(corpo, { contato: conta.name, vendedor: c.get('session').name, empresa: empresa?.name, produto: top?.name, link: '' }), whatsapp: conta.whatsapp })
 })

@@ -59,5 +59,5 @@ describe('montarCorpoPessoa', () => {
   it('recusa sem configuração, sem razão social ou com CNPJ inválido', () => {
     expect(montarCorpoPessoa(lead, CONFIG_PESSOA_VAZIA)).toMatchObject({ ok: false }); expect(montarCorpoPessoa({ ...lead, razaoSocial: ' ' }, cfg)).toMatchObject({ ok: false }); expect(montarCorpoPessoa({ ...lead, cnpj: '123' }, cfg)).toMatchObject({ ok: false })
   })
-  it('config ignora lixo', () => { expect(mesclarConfigPessoa({ tipoClienteId: 'x' })).toEqual(CONFIG_PESSOA_VAZIA); expect(mesclarConfigPessoa({ tipoClienteId: -1, tipoClienteNome: ' Cliente novo ' })).toEqual({ tipoClienteId: null, tipoClienteNome: 'Cliente novo' }) })
+  it('config ignora lixo', () => { expect(mesclarConfigPessoa({ tipoClienteId: 'x' })).toEqual(CONFIG_PESSOA_VAZIA); expect(mesclarConfigPessoa({ tipoClienteId: -1, tipoClienteNome: ' Cliente novo ' })).toEqual({ tipoClienteId: null, tipoClienteNome: 'Cliente novo', campoVendedor: '' }) })
 })

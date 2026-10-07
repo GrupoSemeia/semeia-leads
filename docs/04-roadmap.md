@@ -58,6 +58,12 @@ Marque `[x]` ao concluir. Cada sprint termina com algo demonstrável à AC3.
 - [ ] Deploy produção, backups, domínio; treinamento dos 4 vendedores
 - [ ] Baseline das métricas de sucesso (60 dias anteriores)
 
+## Carteira e ERP (decisão do Augusto/Neto, após a Sprint 6)
+- [x] O ERP manda na carteira (campo do vendedor configurável; sem ele, semente pelo último pedido)
+- [x] Só o admin troca cliente/lead de carteira; leads seguem a carteira do cliente; na conversão o ERP vence
+- [x] Troca no app → fila → ERP (atrás de `pessoa_write_enabled` e do campo configurado), com espelho atualizado e proteção contra o ERP antigo desfazer a troca
+- [ ] **Falta a Rein confirmar** o campo do vendedor e o formato do `POST /pessoa/{id}` (perguntas 11 e 12 de `docs/02-api-rein.md`)
+
 ## Fase 2 (pós-MVP)
 WhatsApp Cloud API + disparos automáticos · agente de IA no WhatsApp (consulta catálogo, monta pré-pedido para aprovação) ·
 estoque/financeiro/NF-e quando a Rein expuser · RMA · comissão por positivação · multi-tenant para outros distribuidores Ctrl-e.

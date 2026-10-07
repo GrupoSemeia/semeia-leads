@@ -23,6 +23,10 @@ export interface ReinApi {
   createPedido(corpo: unknown): Promise<{ id: number | null }>
   /** Cadastra pessoa (PUT /pessoa). Tentativa única. */
   createPessoa(corpo: unknown): Promise<{ id: number | null }>
+  /** Cadastro atual da pessoa, como o ERP devolve (para trocar um campo sem perder o resto). */
+  getPessoa(id: number): Promise<Record<string, unknown> | null>
+  /** Atualiza pessoa (POST /pessoa/{id}). Tentativa única. */
+  updatePessoa(id: number, corpo: unknown): Promise<void>
 }
 
 /** ⚠️ VALIDAR: base da paginação (0 ou 1) e nome do parâmetro. */
@@ -49,6 +53,8 @@ function realApi(creds: ReinCredentials): ReinApi {
     listPedidosVenda: f => list('pedido', { DataMovInicial: f.de, DataMovFinal: f.ate, TipoMovimento: TIPO_VENDA, ...page(f.page) }, nPedido),
     getPedido: async id => { const o = unwrapOne(await reinFetch<unknown>('GET', `/api/v1/pedido/${id}`, creds)); return o ? nPedido(o) : null },
     createPedido: async corpo => ({ id: idDaResposta(unwrapOne(await reinFetch<unknown>('PUT', '/api/v1/pedido', creds, corpo))) }),
+    getPessoa: async id => unwrapOne(await reinFetch<unknown>('GET', `/api/v1/pessoa/${id}`, creds)),
+    updatePessoa: async (id, corpo) => { await reinFetch<unknown>('POST', `/api/v1/pessoa/${id}`, creds, corpo) },
     createPessoa: async corpo => ({ id: idDaResposta(unwrapOne(await reinFetch<unknown>('PUT', '/api/v1/pessoa', creds, corpo))) }),
   }
 }

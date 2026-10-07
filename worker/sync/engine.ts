@@ -10,6 +10,7 @@ import { loadReinCreds } from '../routes/rein'
 import { recomputeAccounts } from '../metrics'
 import { generateTasks } from '../tasks'
 import { convertLeads } from '../leads'
+import { processarVendedorErp } from '../carteira-erp'
 import { reinApiFor, type ReinApi } from '../rein/api'
 import type { Pedido } from '../rein/normalize'
 import { type JobName, type Task, tasksFor, rotuloTarefa } from './tasks'
@@ -221,6 +222,7 @@ export async function runScheduled(env: Env) {
         if (now.getUTCHours() === 5 && vencido('cadastros', 20 * 60)) jobs.add('cadastros')   // 02h de Brasília
       }
       for (const j of jobs) await runSlice(env, tenant, j)
+      if (real) await processarVendedorErp(env, tenant)   // trocas de vendedor feitas no app → ERP (só roda com campo configurado e escrita ligada)
     } catch (e) { console.error('sync agendado falhou', tenant, e) }
   }
 }

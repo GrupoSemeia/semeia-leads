@@ -5,7 +5,7 @@ import { useMe } from '../me'
 import { Bloqueado, ehBloqueioDePlano } from './Bloqueado'
 
 export default function Leads() {
-  const { me } = useMe(), gestor = me.usuario.papel !== 'seller', toast = useToast()
+  const { me } = useMe(), gestor = me.usuario.papel !== 'seller', admin = me.usuario.papel === 'admin', toast = useToast()
   const [dono, setDono] = useState(''), [mostrarFechados, setMostrarFechados] = useState(false), [novo, setNovo] = useState(false), [aberto, setAberto] = useState<string | null>(null)
   const { dados: d, erro, recarregar } = useApi<any>(`/leads${dono ? `?dono=${dono}` : ''}`)
   const equipe = useApi<any>(gestor ? '/equipe' : null)
@@ -34,8 +34,8 @@ export default function Leads() {
         {mostrarFechados && <div className="grid2">{['CONVERTIDO', 'PERDIDO'].map(k => <div key={k} style={{ display: 'grid', gap: 8, alignContent: 'start' }}><strong>{ROTULO_ETAPA[k]}</strong>{por(k).map((l: any) => <Card key={l.id} l={l} />)}</div>)}</div>}
       </>}
     </div>
-    {novo && <NovoLead gestor={gestor} equipe={equipe.dados?.membros ?? []} aoFechar={() => setNovo(false)} aoSalvar={recarregar} />}
-    {aberto && <DetalheLead id={aberto} gestor={gestor} equipe={equipe.dados?.membros ?? []} aoFechar={() => setAberto(null)} aoMudar={recarregar} />}
+    {novo && <NovoLead gestor={admin} equipe={equipe.dados?.membros ?? []} aoFechar={() => setNovo(false)} aoSalvar={recarregar} />}
+    {aberto && <DetalheLead id={aberto} gestor={admin} equipe={equipe.dados?.membros ?? []} aoFechar={() => setAberto(null)} aoMudar={recarregar} />}
   </>
 }
 
@@ -53,7 +53,7 @@ function NovoLead({ gestor, equipe, aoFechar, aoSalvar }: { gestor: boolean; equ
       <div className="grid2"><label className="fl"><span>Cidade</span><input name="cidade" /></label><label className="fl"><span>UF</span><input name="uf" maxLength={2} /></label></div>
       <div className="grid2"><label className="fl"><span>Segmento</span><input name="segmento" placeholder="Ex.: assistência técnica" /></label>
         <label className="fl"><span>Origem</span><select name="origem" defaultValue="manual"><option value="manual">Cadastro manual</option><option value="lista">Lista</option><option value="indicacao">Indicação</option></select></label></div>
-      {gestor && <label className="fl"><span>Vendedor</span><select name="dono" defaultValue=""><option value="">Rodízio automático</option>{equipe.filter(m => m.active && m.role === 'seller').map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>}
+      {gestor && <label className="fl"><span>Vendedor (se o CNPJ já tem carteira no ERP, vale a do ERP)</span><select name="dono" defaultValue=""><option value="">Rodízio automático</option>{equipe.filter(m => m.active && m.role === 'seller').map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></label>}
       {erro && <div className="err">{erro}</div>}
       <div className="row"><button className="btn pri" disabled={ocupado}>Cadastrar</button><button type="button" className="btn" onClick={aoFechar}>Cancelar</button></div>
     </form>
@@ -90,7 +90,7 @@ function DetalheLead({ id, gestor, equipe, aoFechar, aoMudar }: { id: string; ge
           {etapa === 'PERDIDO' && <input value={motivo} onChange={e => setMotivo(e.target.value)} placeholder="Motivo da perda" style={{ flex: 1, minWidth: 160 }} />}
           <button className="btn pri sm" disabled={!etapa || ocupado} onClick={salvarEtapa}>Mover</button></div>
         {l.etapa !== 'PERDIDO' && <div className="row"><span className="muted">Adiar o retorno:</span>{[1, 3, 7].map(n => <button key={n} className="btn sm" disabled={ocupado} onClick={() => patch({ adiarDias: n }, `Retorno em ${n} dia(s).`)}>{n} dia(s)</button>)}</div>}
-        {gestor && <div className="row"><span className="muted">Vendedor:</span><select value={l.donoId ?? ''} onChange={e => patch({ dono: e.target.value || null }, 'Vendedor atualizado.')} style={{ width: 'auto' }} aria-label="Vendedor do lead"><option value="">Sem dono</option>{equipe.filter(m => m.active).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>}</div>}
+        {gestor && <div className="row"><span className="muted">Carteira do vendedor:</span><select value={l.donoId ?? ''} onChange={e => patch({ dono: e.target.value || null }, 'Vendedor atualizado.')} style={{ width: 'auto' }} aria-label="Vendedor do lead"><option value="">Sem dono</option>{equipe.filter(m => m.active).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}</select></div>}</div>}
       {!fechado && !noErp && l.etapa !== 'PERDIDO' && <div className="row"><button className="btn" disabled={ocupado} onClick={async () => { const r = await rodar(() => api<any>(`/leads/${id}/push-erp`, { body: {} })); if (r) setMsg(r.aviso ?? (r.status === 'ENVIADO' ? 'Cadastrado no ERP.' : '')) }}>Cadastrar no ERP</button>
         {l.erpStatus === 'PENDENTE_FLAG' && <span className="muted">Cadastro direto desligado: cadastre manualmente.</span>}</div>}
       {noErp && <div className="muted">Cadastrado no ERP{l.pessoaId ? ` (nº ${l.pessoaId})` : ''}. O lead vira cliente no primeiro pedido.</div>}

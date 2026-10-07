@@ -2,6 +2,8 @@
 import { type Env, fail, newId, clean } from './lib'
 import { cnpjValido, normalizarWhatsapp, soDigitos, proximoFollowup, proximoDoRodizio, estaAberto, ORIGENS, ABERTAS, type Origem } from './domain/leads'
 import { consultarCnpj } from './brasilapi'
+import { escolherDonoLead, donoNaConversao } from './domain/carteira-erp'
+import { trocarDonoContas } from './carteira-erp'
 
 const fmt = (d: Date | null) => (d ? d.toISOString().slice(0, 19).replace('T', ' ') : null)
 const eUnico = (e: unknown) => /UNIQUE|constraint/i.test(String((e as any)?.message ?? e))
@@ -22,7 +24,7 @@ export type ResultadoLead = { id: string | null; duplicado: boolean; jaCliente: 
  * Cria um lead. `publico` = veio do formulário do site: nunca revela se o CNPJ já é cliente ou já tem lead (privacidade dos clientes),
  * e um CNPJ repetido só registra "novo contato". No cadastro manual esses casos viram aviso (409).
  */
-export async function criarLead(env: Env, tenantId: string, d: NovoLead, o: { criadoPor: string | null; donoPreferido?: string | null; publico: boolean }): Promise<ResultadoLead> {
+export async function criarLead(env: Env, tenantId: string, d: NovoLead, o: { criadoPor: string | null; escolhidoPeloAdmin?: string | null; vendedorQueCadastrou?: string | null; publico: boolean }): Promise<ResultadoLead> {
   const db = env.DB
   const cnpj = soDigitos(d.cnpj), whatsapp = normalizarWhatsapp(d.whatsapp), contato = clean(d.contato, 80)
   if (!cnpjValido(cnpj)) throw fail(400, 'CNPJ inválido. Confira os 14 números.')
@@ -45,7 +47,9 @@ export async function criarLead(env: Env, tenantId: string, d: NovoLead, o: { cr
 
 
   const enr = await consultarCnpj(cnpj)
-  const dono = jaCliente ? pessoa.owner_id ?? null : o.donoPreferido ?? (await escolherDonoRodizio(db, tenantId))
+  // quem atende é o vendedor da carteira do CNPJ (ERP/app); só sem carteira vale o escolhido pelo admin, quem cadastrou ou o rodízio
+  const escolha = escolherDonoLead({ donoCarteira: pessoa?.owner_id ?? null, escolhidoPeloAdmin: o.escolhidoPeloAdmin ?? null, vendedorQueCadastrou: o.vendedorQueCadastrou ?? null })
+  const dono = escolha.precisaRodizio ? await escolherDonoRodizio(db, tenantId) : escolha.dono
   const id = newId()
   try {
     await db.batch([
@@ -82,14 +86,11 @@ export async function convertLeads(db: D1Database, tenantId: string): Promise<{ 
       db.prepare("UPDATE leads SET stage='CONVERTIDO', converted_at=datetime('now'), next_followup_at=NULL, updated_at=datetime('now') WHERE id=? AND tenant_id=?").bind(l.id, tenantId),
       db.prepare("INSERT INTO lead_events (id, tenant_id, lead_id, type, text) VALUES (?,?,?,?,?)").bind(newId(), tenantId, l.id, 'convertido', 'Fez o primeiro pedido no ERP. Virou cliente da carteira.'),
     ]
-    if (l.owner_id) {
-      const ativo = await db.prepare('SELECT 1 FROM members WHERE tenant_id=? AND user_id=? AND active=1').bind(tenantId, l.owner_id).first()
-      const conta = await db.prepare('SELECT owner_id FROM accounts WHERE tenant_id=? AND pessoa_rein_id=?').bind(tenantId, l.pessoa).first<{ owner_id: string | null }>()
-      if (ativo && conta && conta.owner_id !== l.owner_id) stmts.push(
-        db.prepare('UPDATE accounts SET owner_id=? WHERE tenant_id=? AND pessoa_rein_id=?').bind(l.owner_id, tenantId, l.pessoa),
-        db.prepare('INSERT INTO ownership_history (id, tenant_id, pessoa_rein_id, from_user_id, to_user_id, by_user_id) VALUES (?,?,?,?,?,?)').bind(newId(), tenantId, l.pessoa, conta.owner_id, l.owner_id, l.owner_id))
-    }
     await db.batch(stmts)
+    // o ERP vence: o vendedor do lead só assume o cliente se a conta ainda estiver sem dono
+    const conta = await db.prepare('SELECT owner_id FROM accounts WHERE tenant_id=? AND pessoa_rein_id=?').bind(tenantId, l.pessoa).first<{ owner_id: string | null }>()
+    const dono = conta ? donoNaConversao(conta.owner_id, l.owner_id) : null
+    if (conta && dono && dono !== conta.owner_id && (await db.prepare('SELECT 1 FROM members WHERE tenant_id=? AND user_id=? AND active=1').bind(tenantId, dono).first())) await trocarDonoContas(db, tenantId, [l.pessoa], dono, dono)
   }
   return { ligados: lig.meta.changes ?? 0, convertidos: prontos.results.length }
 }
