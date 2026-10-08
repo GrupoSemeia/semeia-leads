@@ -139,12 +139,18 @@ npx wrangler secret put SECRETS_KEY   # openssl rand -base64 32
 **Empresa de demonstração em produção** ("Grupo Semeia Digital (demonstração)", id `4aae3d4b-2055-4d12-8987-87a489ffd735`, plano Distribuidor/ativo, ERP em modo de teste): conta só da plataforma (`gruposemeiadigital@gmail.com`, **sem vínculo com a empresa** desde 08/10/2026; para ver os dados da demonstração use `admin@exemplo.semeia.test`), admin da empresa (`admin@exemplo.semeia.test`), gestor (`gestor@exemplo.semeia.test`), vendedores `carlos|mariana|rafael|juliana@exemplo.semeia.test` e 8 leads de exemplo. **Senhas não ficam no repositório** (foram passadas ao Neto na conversa; sem e-mail real, a recuperação de senha não funciona para as contas `@exemplo.semeia.test`). Clientes, produtos e pedidos de exemplo só existem depois da "Carga inicial" em Configurações → Sincronização. Apagar ou trocar essas contas antes de usar a empresa com dados reais.
 **Manual de apresentação para o Augusto:** página privada no claude.ai (https://claude.ai/artifact/7Pv6UNGFcqd8Ct1w3R62ZJ); compartilhar pelo menu Compartilhar. Precisa ser atualizado se planos, preços ou telas mudarem.
 
-**O que falta (depende de pessoas/contas — nenhuma linha de código pendente):**
-1. **Secrets e variáveis do Worker** (Settings → Variables and Secrets; `docs/05-deploy.md`): `SECRETS_KEY` (obrigatório para conectar a Rein real; guardar cópia), `ASAAS_API_KEY`, `ASAAS_WEBHOOK_TOKEN`, `RESEND_API_KEY`, `EMAIL_FROM`, `APP_URL`. Domínio próprio em Domínios & Rotas.
-2. **Webhook na Asaas**: `https://<domínio>/api/asaas/webhook` com os eventos de cobrança e assinatura e o mesmo token.
-3. **E-mail (Resend)**: conta com domínio verificado. Sem isso nenhum e-mail sai (senha e avisos).
-4. **Piloto AC3**: criar a conta do Augusto e, antes do fim do teste de 14 dias, `plan='ativo'` via `PATCH /api/admin/tenants/:id`, senão a conta é bloqueada. Condições comerciais do piloto: a combinar com o Neto.
-5. **Rein**: enviar as perguntas de `docs/02-api-rein.md` (§6 e 11, 12, 13); obter credenciais reais; ajustar `normalize.ts`/`api.ts` (paginação, datas, formato das listas) com a primeira resposta real.
-6. **Homologar escritas no ERP** (`pessoa_write_enabled`, `pedido_write_enabled` seguem desligadas; pedido tem efeito fiscal).
-7. **Carga inicial (backfill)**, piloto com 1 vendedor e baseline das métricas.
-8. **Notificações no aparelho:** cadastrar o secret `VAPID_PRIVATE_KEY` no Worker (a chave pública já está em `wrangler.jsonc`). Sem ele o botão avisa que ainda não está ativo.
+**O que falta (depende de pessoas/contas — nenhuma linha de código pendente; atualizado em 08/10/2026):**
+*Agora (minutos):*
+1. Conferir que o último build do Workers Builds ficou verde (a conta `gruposemeiadigital@gmail.com` só entra se o código novo estiver publicado; senão recolocar o vínculo em `members` pelo D1).
+2. Secret **`VAPID_PRIVATE_KEY`** no Worker (a pública já está em `wrangler.jsonc`; a privada foi passada ao Neto na conversa, nunca no repositório). Sem ele as notificações no aparelho ficam desligadas.
+3. Secret **`SECRETS_KEY`** (`openssl rand -base64 32`, guardar cópia): obrigatório para conectar a Rein real.
+*Contas e serviços:*
+4. **Resend:** conta + domínio verificado; `RESEND_API_KEY` (secret) e `EMAIL_FROM` (var). Sem isso nenhum e-mail sai (senha e avisos).
+5. **Asaas:** `ASAAS_API_KEY` e `ASAAS_WEBHOOK_TOKEN` (secrets) e webhook `https://<endereço>/api/asaas/webhook` (eventos de cobrança e assinatura, mesmo token).
+6. **`APP_URL`** (var; hoje o `workers.dev`) e domínio próprio em Domínios & Rotas.
+*Piloto AC3:*
+7. **Rein:** enviar as perguntas de `docs/02-api-rein.md` (§6 e 11, 12, 13); obter credenciais reais; ajustar `normalize.ts`/`api.ts` (paginação, datas, formato das listas) com a primeira resposta — única parte que pode exigir código.
+8. **Conta do Augusto:** criar a empresa e, antes do fim do teste de 14 dias, `plan='ativo'` via `PATCH /api/admin/tenants/:id`. Condições comerciais do piloto: a combinar com o Neto.
+9. **Carga inicial** com dados reais, piloto com 1 vendedor por 2 semanas, baseline e comparativo no Painel.
+10. **Escrita no ERP** (`pessoa_write_enabled`, `pedido_write_enabled`) segue desligada até homologar com a Rein (pedido tem efeito fiscal).
+*Limites conhecidos:* tudo foi testado só com o modo de teste (nunca com Rein, Asaas ou Resend reais); notificações no aparelho ainda não testadas em celular real (criptografia/assinatura conferidas contra `http_ece`/`web-push`); o manual do Augusto (artifact) não cita trocar senha, conta da plataforma sem empresa nem notificações — atualizar antes da reunião.
