@@ -10,6 +10,8 @@ export type Me = {
     bloqueado: boolean; motivo: string; mensagem: string | null; aviso: 'teste_acaba' | 'atrasada' | null; assinatura: string | null
     vendedores: number; clientes: number; preco: number; vendedorExtra: number; extraContratados: number; mesesPagosNoAno: number }
   admin?: boolean
+  /** conta só da plataforma (administrador do Grupo Semeia sem empresa) */
+  semEmpresa?: boolean
 }
 export const MeCtx = createContext<{ me: Me; recarregar: () => void } | null>(null)
 export const useMe = () => useContext(MeCtx)!

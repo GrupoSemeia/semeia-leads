@@ -1,5 +1,5 @@
 /** Textos dos e-mails (português simples). Funções PURAS. Todo dado de empresa/cliente/lead é escapado no HTML e limpo de quebras de linha no assunto. */
-export type Mensagem = { assunto: string; texto: string; html: string }
+export type Mensagem = { assunto: string; texto: string; html: string; /** endereço que o aviso abre (e-mail e notificação) */ link?: string; /** primeira linha de explicação, usada no corpo da notificação */ resumo?: string }
 
 export const esc = (v: unknown) => String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!))
 /** Assunto sem quebra de linha (injeção de cabeçalho) e com tamanho razoável. */
@@ -14,7 +14,7 @@ function montar(titulo: string, linhas: string[], opts: { link?: string | null; 
   const html = `<div style="font-family:Arial,Helvetica,sans-serif;max-width:520px;margin:0 auto;color:#12263f">
 <h2 style="margin:0 0 12px;font-size:20px">${esc(titulo)}</h2>${linhas.map(l => `<p style="margin:0 0 10px;line-height:1.5">${esc(l)}</p>`).join('')}${link ? `<p style="margin:18px 0"><a href="${esc(link)}" style="background:#00c4d0;color:#000b1a;padding:12px 20px;border-radius:8px;text-decoration:none;font-weight:bold">${esc(opts.botao ?? 'Abrir')}</a></p>` : ''}
 <p style="margin:22px 0 0;color:#5b6b82;font-size:12px">${esc(rodape)}</p></div>`
-  return { assunto: assuntoSeguro(titulo), texto, html }
+  return { assunto: assuntoSeguro(titulo), texto, html, link: link ?? undefined, resumo: linhas[0] ? assuntoSeguro(linhas[0]) : undefined }
 }
 
 export const emailRecuperacaoSenha = (i: { nome: string; link: string; validadeMin: number }) =>

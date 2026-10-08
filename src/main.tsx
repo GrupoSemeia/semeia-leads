@@ -23,6 +23,7 @@ import { PrePedidos, PrePedido } from './pages/PrePedidos'
 import Nps from './pages/Nps'
 import { alternarTema, aplicarTema, temaAtual } from './tema'
 import Ajuda, { temaDaRota } from './pages/Ajuda'
+import Conta from './pages/Conta'
 
 
 aplicarTema(temaAtual())
@@ -60,12 +61,39 @@ function Shell({ me, recarregar, children }: { me: Me; recarregar: () => void; c
         {me.trialDias !== null ? <NavLink to="/assinatura" className="planpill trial" style={{ textDecoration: 'none' }}>Teste grátis · {me.trialDias} dia(s)</NavLink> : <span className="planpill">{me.plano.nome}</span>}
         <button className="btn ghost sm tema-btn" onClick={() => setTema(alternarTema())} title={tema === 'claro' ? 'Mudar para o tema escuro' : 'Mudar para o tema claro'} aria-label={tema === 'claro' ? 'Mudar para o tema escuro' : 'Mudar para o tema claro'}><span className="lua"><Icon n="moon" /></span><span className="sol"><Icon n="sun" /></span></button>
         <NavLink to={`/ajuda/${temaDaRota(loc.pathname)}`} className="btn ghost sm" title="Como funciona esta tela" aria-label="Ajuda sobre esta tela"><Icon n="help" /></NavLink>
-        <span className="avatar" title={me.usuario.nome}>{iniciais(me.usuario.nome)}</span>
+        <NavLink to="/conta" className="avatar" title="Minha conta" aria-label="Minha conta" style={{ textDecoration: 'none' }}>{iniciais(me.usuario.nome)}</NavLink>
         <button className="btn ghost sm" onClick={sair} title="Sair" aria-label="Sair"><Icon n="logout" /></button>
       </header>
       {me.plano.aviso === 'atrasada' && <div className="tbanner" role="alert">Pagamento atrasado. Regularize para não perder o acesso. {me.usuario.papel === 'admin' && <NavLink to="/assinatura">Ver cobrança</NavLink>}</div>}
       {me.plano.aviso === 'teste_acaba' && me.trialDias !== null && <div className="tbanner" role="status">Seu teste grátis termina em {me.trialDias} dia(s). {me.usuario.papel === 'admin' && <NavLink to="/assinatura">Escolher um plano</NavLink>}</div>}
       <main className="content">{children}</main>
+    </div>
+  </div>
+}
+
+/** Conta só da plataforma (sem empresa): enxerga apenas "Todas as empresas", a conta e a ajuda. */
+function ShellPlataforma({ me, recarregar }: { me: Me; recarregar: () => void }) {
+  const nav = useNavigate(), loc = useLocation(), [tema, setTema] = useState(temaAtual())
+  const sair = async () => { await api('/auth/logout', { method: 'POST' }); recarregar(); nav('/entrar') }
+  return <div className="shell" style={{ gridTemplateColumns: 'minmax(0,1fr)' }}>
+    <div className="main">
+      <header className="top">
+        <div className="brand" style={{ padding: 0 }}><Logo /><b>Semeia <i>Leads</i></b></div>
+        <span className="planpill plat-oculta">Plataforma</span>
+        <div style={{ flex: 1 }} />
+        <NavLink to="/admin" className="btn ghost sm plat-oculta">Todas as empresas</NavLink>
+        <button className="btn ghost sm tema-btn" onClick={() => setTema(alternarTema())} title={tema === 'claro' ? 'Mudar para o tema escuro' : 'Mudar para o tema claro'} aria-label={tema === 'claro' ? 'Mudar para o tema escuro' : 'Mudar para o tema claro'}><span className="lua"><Icon n="moon" /></span><span className="sol"><Icon n="sun" /></span></button>
+        <NavLink to={`/ajuda/${loc.pathname.startsWith('/admin') ? 'plataforma' : 'comecar'}`} className="btn ghost sm" title="Ajuda" aria-label="Ajuda"><Icon n="help" /></NavLink>
+        <NavLink to="/conta" className="avatar" title="Minha conta" aria-label="Minha conta" style={{ textDecoration: 'none' }}>{iniciais(me.usuario.nome)}</NavLink>
+        <button className="btn ghost sm" onClick={sair} title="Sair" aria-label="Sair"><Icon n="logout" /></button>
+      </header>
+      <main className="content"><Routes>
+        <Route path="/admin" element={<Admin />} />
+        <Route path="/conta" element={<Conta />} />
+        <Route path="/ajuda" element={<Ajuda />} />
+        <Route path="/ajuda/:tema" element={<Ajuda />} />
+        <Route path="*" element={<Navigate to="/admin" replace />} />
+      </Routes></main>
     </div>
   </div>
 }
@@ -78,6 +106,7 @@ function App() {
   if (/^\/(convite|nps|seja-revendedor|redefinir)\//.test(loc.pathname) || loc.pathname === '/esqueci') return <Routes><Route path="/esqueci" element={<Esqueci />} /><Route path="/redefinir/:token" element={<Redefinir />} /><Route path="/convite/:token" element={<Convite aoEntrar={carregar} />} /><Route path="/nps/:token" element={<Nps />} /><Route path="/seja-revendedor/:slug" element={<SejaRevendedor />} /></Routes>
   if (!me) return <Carregando />
   if (!me.logado) return <Routes><Route path="/entrar" element={<Entrar aoEntrar={carregar} />} /><Route path="*" element={<Navigate to="/entrar" replace />} /></Routes>
+  if (me.semEmpresa) return <MeCtx.Provider value={{ me, recarregar: carregar }}><ShellPlataforma me={me} recarregar={carregar} /></MeCtx.Provider>
   if (me.plano.bloqueado) return <MeCtx.Provider value={{ me, recarregar: carregar }}>
     <Shell me={me} recarregar={carregar}><Routes><Route path="*" element={<Assinatura />} /></Routes></Shell>
   </MeCtx.Provider>
@@ -93,6 +122,7 @@ function App() {
         <Route path="/pre-pedidos/:id" element={<PrePedido />} />
         {me.usuario.papel !== 'seller' && <Route path="/configuracoes" element={<Config />} />}
         {me.usuario.papel !== 'seller' && <Route path="/painel" element={<Painel />} />}
+        <Route path="/conta" element={<Conta />} />
         <Route path="/ajuda" element={<Ajuda />} />
         <Route path="/ajuda/:tema" element={<Ajuda />} />
         <Route path="/assinatura" element={<Assinatura />} />

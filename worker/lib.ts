@@ -4,8 +4,10 @@ import { nivelDe, limiteVendedores, PLANOS, tierEfetivo } from './plans'
 
 export type Env = { DB: D1Database; IMAGENS?: R2Bucket; ASSETS: Fetcher; APP_NAME: string; ADMINS?: string; SECRETS_KEY?: string
   ASAAS_URL?: string; ASAAS_API_KEY?: string; ASAAS_WEBHOOK_TOKEN?: string
-  RESEND_API_KEY?: string; EMAIL_FROM?: string; EMAIL_PROVIDER?: string; APP_URL?: string }
+  RESEND_API_KEY?: string; EMAIL_FROM?: string; EMAIL_PROVIDER?: string; APP_URL?: string
+  VAPID_PUBLIC_KEY?: string; VAPID_PRIVATE_KEY?: string; VAPID_SUBJECT?: string }
 export type Role = 'admin' | 'manager' | 'seller'
+/** tenantId vazio ('') = conta só da plataforma (sem empresa): só enxerga /api/admin, /api/push e /api/auth. */
 export type Session = { userId: string; tenantId: string; role: Role; name: string; email: string; platformAdmin: boolean }
 export type App = { Bindings: Env; Variables: { session: Session } }
 export type C = Context<App>
@@ -78,7 +80,7 @@ export async function decryptSecret(env: Env, enc: string): Promise<string> {
 /* ---------- sessão ---------- */
 const COOKIE = 'semeialeads_sessao'
 const SESSION_DAYS = 30
-export async function createSession(c: C, userId: string, tenantId: string) {
+export async function createSession(c: C, userId: string, tenantId: string | null) {
   const token = randomToken(32)
   const expires = new Date(Date.now() + SESSION_DAYS * 864e5)
   await c.env.DB.prepare('INSERT INTO sessions (id, user_id, tenant_id, expires_at) VALUES (?,?,?,?)')
@@ -96,9 +98,14 @@ export async function readSession(c: C): Promise<Session | null> {
   const r = await c.env.DB.prepare(
     `SELECT s.user_id, s.tenant_id, s.expires_at, u.name, u.email, m.role
        FROM sessions s JOIN users u ON u.id = s.user_id
-       JOIN members m ON m.user_id = s.user_id AND m.tenant_id = s.tenant_id AND m.active = 1
+       LEFT JOIN members m ON m.user_id = s.user_id AND m.tenant_id = s.tenant_id AND m.active = 1
       WHERE s.id = ?`).bind(await sha256(token)).first<any>()
   if (!r || new Date(r.expires_at) < new Date()) return null
+  if (!r.tenant_id) {   // sem empresa: só vale para administrador da plataforma (e-mail em ADMINS)
+    if (!isPlatformAdmin(c.env, r.email)) return null
+    return { userId: r.user_id, tenantId: '', role: 'seller', name: r.name, email: r.email, platformAdmin: true }
+  }
+  if (!r.role) return null   // saiu da empresa ou foi desativado
   return { userId: r.user_id, tenantId: r.tenant_id, role: r.role, name: r.name, email: r.email, platformAdmin: isPlatformAdmin(c.env, r.email) }
 }
 /** Administradores da plataforma (Grupo Semeia): e-mails na variável ADMINS. */
@@ -112,6 +119,12 @@ export const requireLogin: MiddlewareHandler<App> = async (c, next) => {
   c.set('session', s)
   await next()
 }
+/** Conta só da plataforma (sem empresa) não entra em nenhuma rota de empresa; só /admin, /push e /auth. */
+export const soComEmpresa: MiddlewareHandler<App> = async (c, next) => {
+  if (c.get('session').tenantId) return next()
+  if (c.req.path.startsWith('/api/admin') || c.req.path.startsWith('/api/push')) return next()
+  return c.json({ erro: 'Esta conta é só da plataforma e não pertence a nenhuma empresa.' }, 403)
+}
 /** Libera só para os papéis indicados (admin sempre passa). */
 export const requireRole = (...roles: Role[]): MiddlewareHandler<App> => async (c, next) => {
   const r = c.get('session').role
@@ -122,6 +135,7 @@ export const requireRole = (...roles: Role[]): MiddlewareHandler<App> => async (
 export const tenantOf = (c: C) => c.get('session').tenantId
 
 export async function audit(db: D1Database, tenantId: string, userId: string | null, action: string, detail?: unknown) {
+  if (!tenantId) return   // conta da plataforma sem empresa: não há histórico de empresa para gravar
   await db.prepare('INSERT INTO audit_log (id, tenant_id, user_id, action, detail) VALUES (?,?,?,?,?)')
     .bind(newId(), tenantId, userId, action, detail === undefined ? null : JSON.stringify(detail)).run()
 }

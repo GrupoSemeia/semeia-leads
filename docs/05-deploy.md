@@ -52,3 +52,8 @@ Na Asaas (Integrações → Webhooks): URL `https://<domínio>/api/asaas/webhook
 - Worker `semeia-leads` na conta Cloudflare do Grupo Semeia, **plano Workers Paid** (o gratuito permite só 5 cron triggers por conta).
 - Workers Builds ligado ao repositório: cada push na branch `claude/festive-maxwell-x44qge` roda `npm run build` e `npx wrangler deploy`. Se criar a `main`, troque a branch de produção em Settings → Builds.
 - D1 e R2 já criados; as migrações novas precisam ser aplicadas no D1 antes de publicar código que dependa delas.
+
+## Notificações no aparelho (Web Push)
+1. A chave pública já está em `wrangler.jsonc` (`VAPID_PUBLIC_KEY`). Se precisar gerar outro par: `node scripts/gerar-vapid.mjs` (e troque a pública no `wrangler.jsonc`; quem já ligou as notificações precisa ligar de novo).
+2. Cadastre a chave **privada** como segredo do Worker: painel → Configurações → Variáveis e Segredos → `VAPID_PRIVATE_KEY` (tipo Segredo), ou `npx wrangler secret put VAPID_PRIVATE_KEY`. Nunca coloque no repositório.
+3. Teste: em Minha conta, "Ligar notificações neste aparelho" e "Enviar teste". No iPhone, instale o app na tela inicial primeiro.

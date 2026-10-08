@@ -1,11 +1,12 @@
 import { Hono } from 'hono'
-import { type App, type Env, AppError, requireLogin, requireNivel, readSession } from './lib'
+import { type App, type Env, AppError, requireLogin, soComEmpresa, requireNivel, readSession } from './lib'
 import { auth } from './routes/auth'
 import { team } from './routes/team'
 import { rein } from './routes/rein'
 import { sync } from './routes/sync'
 import { accounts } from './routes/accounts'
 import { admin } from './routes/admin'
+import { push } from './routes/push'
 import { agenda, templates } from './routes/agenda'
 import { publico } from './routes/publico'
 import { catalogo } from './routes/catalogo'
@@ -34,6 +35,7 @@ app.route('/api/asaas/webhook', asaasWebhook)   // Asaas: pagamentos dos planos 
 // daqui para baixo, só com login — cada rota recebe a empresa da sessão
 const priv = new Hono<App>()
 priv.use('*', requireLogin)
+priv.use('*', soComEmpresa)   // conta só da plataforma (sem empresa) fica restrita a /admin e /push
 priv.use('*', exigirContaLiberada)   // teste acabou / sem pagamento / suspensa → 402 (dados guardados)
 priv.route('/equipe', team)
 priv.route('/rein', rein)
@@ -54,6 +56,7 @@ priv.route('/assinatura', assinatura)
 priv.route('/parametros', parametros)
 priv.route('/catalogo', catalogo)
 priv.route('/pre-pedidos', prepedidos)
+priv.route('/push', push)
 priv.route('/admin', admin)   // plataforma (Grupo Semeia): só ADMINS
 app.route('/api', priv)
 

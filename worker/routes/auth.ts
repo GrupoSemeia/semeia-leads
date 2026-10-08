@@ -1,7 +1,8 @@
 import { Hono } from 'hono'
+import { getCookie } from 'hono/cookie'
 import { emailRecuperacaoSenha, emailValido } from '../domain/emails'
 import { enviarEmail } from '../email'
-import { type App, loadTenantPlano, newId, hashPassword, checkPassword, createSession, endSession, readSession, clean, slugify, fail, sha256, requireLogin, randomToken, audit } from '../lib'
+import { type App, loadTenantPlano, newId, hashPassword, checkPassword, createSession, endSession, readSession, clean, slugify, fail, sha256, requireLogin, randomToken, audit, isPlatformAdmin } from '../lib'
 
 import { estadoDaConta, MENSAGEM_BLOQUEIO } from '../billing'
 import { PLANOS, VENDEDOR_EXTRA, MESES_PAGOS_NO_ANO, tierEfetivo, nivelDe, limiteVendedores, limiteClientes, emTeste } from '../plans'
@@ -32,11 +33,11 @@ auth.post('/signup', async c => {
 
 auth.post('/login', async c => {
   const b = await c.req.json<any>()
-  const u = await c.env.DB.prepare('SELECT id, password_hash FROM users WHERE email = ?').bind(clean(b.email, 120).toLowerCase()).first<any>()
+  const u = await c.env.DB.prepare('SELECT id, email, password_hash FROM users WHERE email = ?').bind(clean(b.email, 120).toLowerCase()).first<any>()
   if (!u || !(await checkPassword(String(b.senha ?? ''), u.password_hash))) throw fail(401, 'E-mail ou senha incorretos.')
   const m = await c.env.DB.prepare('SELECT tenant_id FROM members WHERE user_id = ? AND active = 1 ORDER BY created_at LIMIT 1').bind(u.id).first<any>()
-  if (!m) throw fail(403, 'Seu usuário não está ligado a nenhuma empresa.')
-  await createSession(c, u.id, m.tenant_id)
+  if (!m && !isPlatformAdmin(c.env, u.email)) throw fail(403, 'Seu usuário não está ligado a nenhuma empresa.')
+  await createSession(c, u.id, m?.tenant_id ?? null)   // administrador da plataforma sem empresa entra só com a visão da plataforma
   return c.json({ ok: true })
 })
 
@@ -46,6 +47,7 @@ auth.get('/me', async c => {
   const s = await readSession(c)
   if (!s) return c.json({ logado: false })
   const db = c.env.DB
+  if (!s.tenantId) return c.json({ logado: true, semEmpresa: true, usuario: { id: s.userId, nome: s.name, email: s.email, papel: 'admin' }, admin: true, empresas: [] })
   const tenant = await db.prepare('SELECT id, name, slug, city, whatsapp, plan, tier, extra_sellers, trial_until FROM tenants WHERE id = ?').bind(s.tenantId).first<any>()
   const list = await db.prepare('SELECT t.id, t.name, t.city FROM members m JOIN tenants t ON t.id = m.tenant_id WHERE m.user_id = ? AND m.active = 1 ORDER BY t.name').bind(s.userId).all()
   const days = tenant.trial_until ? Math.ceil((new Date(tenant.trial_until).getTime() - Date.now()) / 864e5) : null
@@ -73,6 +75,24 @@ auth.patch('/preferencias', requireLogin, async c => {
   const b = await c.req.json<any>(), s = c.get('session')
   if (typeof b.avisosEmail !== 'boolean') throw fail(400, 'Informe se quer receber avisos por e-mail.')
   await c.env.DB.prepare('UPDATE members SET notify_email=? WHERE tenant_id=? AND user_id=?').bind(b.avisosEmail ? 1 : 0, s.tenantId, s.userId).run()
+  return c.json({ ok: true })
+})
+
+/** Trocar a própria senha (pede a atual). As outras sessões abertas são encerradas; esta continua. */
+auth.post('/senha', requireLogin, async c => {
+  const b = await c.req.json<any>().catch(() => ({})), s = c.get('session'), db = c.env.DB
+  const atual = String(b.senhaAtual ?? ''), nova = String(b.novaSenha ?? '')
+  if (nova.length < 8) throw fail(400, 'A nova senha precisa ter pelo menos 8 caracteres.')
+  if (nova === atual) throw fail(400, 'A nova senha precisa ser diferente da atual.')
+  const u = await db.prepare('SELECT password_hash FROM users WHERE id = ?').bind(s.userId).first<any>()
+  if (!u || !(await checkPassword(atual, u.password_hash))) throw fail(401, 'A senha atual está incorreta.')
+  const token = getCookie(c, 'semeialeads_sessao')
+  const minha = token ? await sha256(token) : ''
+  await db.batch([
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').bind(await hashPassword(nova), s.userId),
+    db.prepare('DELETE FROM sessions WHERE user_id = ? AND id <> ?').bind(s.userId, minha),
+  ])
+  await audit(db, s.tenantId, s.userId, 'senha_alterada')
   return c.json({ ok: true })
 })
 

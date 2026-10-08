@@ -23,7 +23,9 @@ export const MENSAGEM_BLOQUEIO: Record<string, string> = {
 /** Em toda rota logada (menos assinatura/admin): conta sem acesso recebe 402. Os dados continuam guardados. */
 export const exigirContaLiberada: MiddlewareHandler<App> = async (c, next) => {
   if (c.req.path.startsWith('/api/assinatura') || c.req.path.startsWith('/api/admin')) return next()
-  const e = await estadoDaConta(c.env.DB, c.get('session').tenantId)
+  const t = c.get('session').tenantId
+  if (!t) return next()
+  const e = await estadoDaConta(c.env.DB, t)
   if (e && !e.acesso.liberado) return c.json({ erro: MENSAGEM_BLOQUEIO[e.acesso.motivo] ?? 'Acesso bloqueado.', bloqueado: true, motivo: e.acesso.motivo }, 402)
   return next()
 }

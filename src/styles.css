@@ -495,3 +495,7 @@ a.btn{display:inline-flex;align-items:center}
 .tema-btn .lua{display:none}
 :root[data-theme="light"] .tema-btn .sol{display:none}
 :root[data-theme="light"] .tema-btn .lua{display:block}
+
+/* topo da conta só da plataforma, no celular */
+.top .brand b{white-space:nowrap}
+@media (max-width:560px){.top .plat-oculta{display:none!important}.top .brand b{font-size:20px}.top{padding-inline:12px}}

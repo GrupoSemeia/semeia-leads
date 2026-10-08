@@ -6,7 +6,7 @@ import { useMe } from '../me'
 import { brl } from '../api'
 
 export default function Config() {
-  return <><PageHead eyebrow="Empresa" title="Configurações" /><div className="stack"><PlanoCard /><Parametros /><ConexaoErp /><PedidoErp /><PessoaErp /><TrocasNoErp /><Sincronizacao /><Modelos /><Avisos /><Equipe /></div></>
+  return <><PageHead eyebrow="Empresa" title="Configurações" /><div className="stack"><PlanoCard /><Parametros /><ConexaoErp /><PedidoErp /><PessoaErp /><TrocasNoErp /><Sincronizacao /><Modelos /><Equipe /></div></>
 }
 
 function ConexaoErp() {
@@ -44,19 +44,6 @@ function ConexaoErp() {
     {msg && <div className="note">{msg}</div>}
     <div className="row"><button className="btn pri" disabled={ocupado}>Salvar</button><button type="button" className="btn" disabled={ocupado} onClick={testar}>Testar conexão</button></div>
   </form>
-}
-
-/* avisos por e-mail (insatisfação, lead do site, atraso, falhas): cada pessoa liga ou desliga os seus */
-function Avisos() {
-  const { me, recarregar } = useMe(), toast = useToast()
-  if (me.usuario.papel === 'seller') return null
-  async function mudar(v: boolean) {
-    try { await api('/auth/preferencias', { method: 'PATCH', body: { avisosEmail: v } }); recarregar(); toast(v ? 'Avisos por e-mail ligados.' : 'Avisos por e-mail desligados.') } catch (x: any) { toast(x.message) }
-  }
-  return <section className="card stack">
-    <div><div className="eyebrow">Para você</div><h3>Avisos por e-mail</h3></div>
-    <label className="row"><input type="checkbox" checked={!!me.usuario.avisosEmail} onChange={e => mudar(e.target.checked)} style={{ width: 'auto' }} /> Receber por e-mail: cliente insatisfeito, lead novo pelo site, troca que não chegou ao ERP{me.usuario.papel === 'admin' ? ', pagamento em atraso, falha de sincronização e fim do teste' : ''}</label>
-  </section>
 }
 
 function Equipe() {
